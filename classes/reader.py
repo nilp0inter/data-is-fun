@@ -26,10 +26,13 @@ class reader:
          de fichero y una expresion regular. Parsea cada linea
          y devuelve el diccionario de valores parseados.
     """
-            
-    def __init__(self, input_file, regexp, skip_empty_lines = True, \
-                skip_first_line = False, delete_extra_spaces=True, \
-                static_fields = None):
+
+#    def __init__(self, input_file, regexp, skip_empty_lines = True, \
+#                skip_first_line = False, delete_extra_spaces=True, \
+#                static_fields = None):
+    def __init__(self, config, input_file):
+
+        regexp = config.get("reader", "regexp"), \
 
         self.log = logging.getLogger('main.reader')
 
@@ -55,13 +58,16 @@ class reader:
                 self.regexp.append(re.compile("".join(groups[0:99])))
                 del groups[0:99]
 
-        self.skip_empty_lines = skip_empty_lines
-        self.delete_extra_spaces = delete_extra_spaces
+        self.skip_empty_lines = config.get("reader", "skip_empty_lines", "boolean", True), \
+ 
+        self.delete_extra_spaces = config.get("reader", "delete_extra_spaces", "boolean", True),\
 
+        skip_first_line=config.get("reader", "skip_first_line", "boolean", False), \
         if skip_first_line:
             self.log.warning("Skipping first line...")
             self.input_file.readline()
 
+        static_fields=config.get("reader", "static_fields")\
         if static_fields and type(static_fields) == str:
             self.static_fields = dict()
             for item in static_fields.split(","):

@@ -31,23 +31,31 @@ class dbinspector:
 
     """
 
-    def __init__(self, hostname, database, user, password, table, \
-                skip_columns=[], force_text_fields = []):
+#    def __init__(self, hostname, database, user, password, table, \
+#                skip_columns=[], force_text_fields = []):
 
+    def __init__(self, config):
 
         self.log = logging.getLogger('main.writer')
-        self.db = MySQLdb.connect(host=hostname, user=user, passwd=password, db=database)        
+
+        self.hostname = config.get("writer", "hostname")
+        self.database = config.get("writer", "database")
+        self.username = config.get("writer", "username")
+        self.password = config.get("writer", "password")
+
+
+        self.db = MySQLdb.connect(host=self.hostname, user=self.user, passwd=self.password, db=self.database)        
 
         self.cursor = self.db.cursor()
 
-        self.table = table
-        if force_text_fields:
-            self.force_text_fields = force_text_fields
-        else:
+        self.table = config.get("writer", "table")
+
+        self.force_text_fields = map(lambda x: x.strip(), config.get("writer", "force_text_fields", "string", "").split(","))
+        if not self.force_text_fields:
             self.force_text_fields = []
 
         self.must_create = False
-        self.skip_columns = skip_columns
+        self.skip_columns=map(lambda x: x.strip(), config.get("writer", "skip_columns", "string", "").split(","))
 
         self.columns = {}
 

@@ -72,7 +72,9 @@ def usage():
 if __name__ == '__main__':
     version = "1.0"
 
-
+    #
+    # Parse command line options
+    #
     try:
         opts, files_to_read = getopt.getopt(sys.argv[1:], "hqc:d", ["help", "quiet", "config=", "debug"])
     except getopt.GetoptError, err:
@@ -98,8 +100,15 @@ if __name__ == '__main__':
     if not config_file:
         usage()
         
+    #
+    # Load config from file
+    #
     c = Config(config_file)
 
+
+    # 
+    # Start logger
+    #
     if verbose_level == None:
         verbose_level = c.get("main", "verbose", "int", 2)
 
@@ -129,18 +138,21 @@ if __name__ == '__main__':
     on_error = c.get("main", "on_error", "string", "rollback")
     inspect = c.get("main", "inspect", "boolean", True)
 
-
+    #
+    # File inspection
+    #
     if inspect:
         # Inspect files before insert
         try:
-            w = dbinspector(c.get("writer", "hostname"), \
-                        c.get("writer", "database"), \
-                        c.get("writer", "username"), \
-                        c.get("writer", "password"), \
-                        c.get("writer", "table"), \
-                        skip_columns=map(lambda x: x.strip(), c.get("writer", "skip_columns", "string", "").split(",")), \
-                        force_text_fields=map(lambda x: x.strip(), c.get("writer", "force_text_fields", "string", "").split(","))\
-                        )
+            w = dbinspector(c)
+##            w = dbinspector(c.get("writer", "hostname"), \
+##                        c.get("writer", "database"), \
+##                        c.get("writer", "username"), \
+##                        c.get("writer", "password"), \
+##                        c.get("writer", "table"), \
+##                        skip_columns=map(lambda x: x.strip(), c.get("writer", "skip_columns", "string", "").split(",")), \
+##                        force_text_fields=map(lambda x: x.strip(), c.get("writer", "force_text_fields", "string", "").split(","))\
+##                        )
         except Exception, e:
             log.error("Error starting database inspector")
             log.exception(e)
@@ -158,13 +170,14 @@ if __name__ == '__main__':
                 pbar = progressbar.ProgressBar(widgets=widgets, maxval=file_len(filename))
                 pbar.start()
 
-            r = reader(filename, \
-                        c.get("reader", "regexp"), \
-                        skip_empty_lines=c.get("reader", "skip_empty_lines", "boolean", True), \
-                        skip_first_line=c.get("reader", "skip_first_line", "boolean", False), \
-                        delete_extra_spaces=c.get("reader", "delete_extra_spaces", "boolean", True),\
-                        static_fields=c.get("reader", "static_fields")\
-                        )
+            r = reader(c, filename)
+#            r = reader(filename, \
+#                        c.get("reader", "regexp"), \
+#                        skip_empty_lines=c.get("reader", "skip_empty_lines", "boolean", True), \
+#                        skip_first_line=c.get("reader", "skip_first_line", "boolean", False), \
+#                        delete_extra_spaces=c.get("reader", "delete_extra_spaces", "boolean", True),\
+#                        static_fields=c.get("reader", "static_fields")\
+#                        )
 
             query_type = c.get("writer", "query_type", "string", default="insert") 
             query_where = c.get("writer", "query_where", "string", default="")
@@ -189,7 +202,9 @@ if __name__ == '__main__':
         w.finish()
         del w
 
+    #
     # Insert data
+    #
     try:
         w = dbwriter(c.get("writer", "hostname"), \
                     c.get("writer", "database"), \
