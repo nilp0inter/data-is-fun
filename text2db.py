@@ -25,11 +25,16 @@ import os
 import sys
 import logging
 import getopt
-import ConfigParser
+
+# Add class dir to the path
+BASE_DIR = os.path.dirname(__file__) or '.'
+CLASS_DIR = os.path.join(BASE_DIR, 'classes')
+sys.path.insert(0, CLASS_DIR)
 
 from reader import reader
 from dbwriter import dbwriter
 from dbinspector import dbinspector
+from config import Config
 
 try:
     import progressbar
@@ -45,29 +50,6 @@ __maintainer__ = "Roberto Abdelkader"
 __email__ = "contacto@robertomartinezp.es"
 __status__ = "Production"
 
-
-def get_config(section, option, option_type="string", default=None):
-    """
-        Carga una opcion del fichero de configuracion.
-        Version safe getopt
-
-    """
-    value = default
-    try:
-        if option_type == "string":
-            value = c.get(section,option)
-        elif option_type == "boolean":
-            value = c.getboolean(section,option)
-        elif option_type == "int":
-            value = c.getint(section,option)
-        elif option_type == "float":
-            value = c.getfloat(section,option)
-    except:
-        value = default
-
-    log = logging.getLogger('main.config')
-    log.debug("Setting option %s\\%s = %s" % (section, option, value))
-    return value
     
 def file_len(fname):
     try:
@@ -89,10 +71,7 @@ def usage():
 
 if __name__ == '__main__':
     version = "1.0"
-    revision = "$Date $"
-    # $Date$
 
-    c = ConfigParser.RawConfigParser()
 
     try:
         opts, files_to_read = getopt.getopt(sys.argv[1:], "hqc:d", ["help", "quiet", "config=", "debug"])
@@ -119,10 +98,10 @@ if __name__ == '__main__':
     if not config_file:
         usage()
         
-    c.read(config_file)
+    c = Config(config_file)
 
     if verbose_level == None:
-        verbose_level = get_config("main", "verbose", "int", 2)
+        verbose_level = c.get("main", "verbose", "int", 2)
 
     if verbose_level == 0: # TOTALY QUIET
         verbose_level = logging.CRITICAL
@@ -135,7 +114,7 @@ if __name__ == '__main__':
         verbose_level = logging.DEBUG
         progress = False
 
-    log_file = get_config("main", "log_file", "string", None)
+    log_file = c.get("main", "log_file", "string", None)
     log_format = '%(asctime)s [%(levelname)s] - %(message)s'
 
     log = logging.getLogger('main')
@@ -145,23 +124,22 @@ if __name__ == '__main__':
         logging.basicConfig(level=verbose_level, format=log_format)
 
 
-    log.info("Text2DB Started! v." + version + " rev." + revision)
+    log.info("Text2DB Started! v.%s", version)
 
-
-    on_error = get_config("main", "on_error", "string", "rollback")
-    inspect = get_config("main", "inspect", "boolean", True)
+    on_error = c.get("main", "on_error", "string", "rollback")
+    inspect = c.get("main", "inspect", "boolean", True)
 
 
     if inspect:
         # Inspect files before insert
         try:
-            w = dbinspector(get_config("writer", "hostname"), \
-                        get_config("writer", "database"), \
-                        get_config("writer", "username"), \
-                        get_config("writer", "password"), \
-                        get_config("writer", "table"), \
-                        skip_columns=map(lambda x: x.strip(), get_config("writer", "skip_columns", "string", "").split(",")), \
-                        force_text_fields=map(lambda x: x.strip(), get_config("writer", "force_text_fields", "string", "").split(","))\
+            w = dbinspector(c.get("writer", "hostname"), \
+                        c.get("writer", "database"), \
+                        c.get("writer", "username"), \
+                        c.get("writer", "password"), \
+                        c.get("writer", "table"), \
+                        skip_columns=map(lambda x: x.strip(), c.get("writer", "skip_columns", "string", "").split(",")), \
+                        force_text_fields=map(lambda x: x.strip(), c.get("writer", "force_text_fields", "string", "").split(","))\
                         )
         except Exception, e:
             log.error("Error starting database inspector")
@@ -181,15 +159,15 @@ if __name__ == '__main__':
                 pbar.start()
 
             r = reader(filename, \
-                        get_config("reader", "regexp"), \
-                        skip_empty_lines=get_config("reader", "skip_empty_lines", "boolean", True), \
-                        skip_first_line=get_config("reader", "skip_first_line", "boolean", False), \
-                        delete_extra_spaces=get_config("reader", "delete_extra_spaces", "boolean", True),\
-                        static_fields=get_config("reader", "static_fields")\
+                        c.get("reader", "regexp"), \
+                        skip_empty_lines=c.get("reader", "skip_empty_lines", "boolean", True), \
+                        skip_first_line=c.get("reader", "skip_first_line", "boolean", False), \
+                        delete_extra_spaces=c.get("reader", "delete_extra_spaces", "boolean", True),\
+                        static_fields=c.get("reader", "static_fields")\
                         )
 
-            query_type = get_config("writer", "query_type", "string", default="insert") 
-            query_where = get_config("writer", "query_where", "string", default="")
+            query_type = c.get("writer", "query_type", "string", default="insert") 
+            query_where = c.get("writer", "query_where", "string", default="")
             try:
                 for data in r:
                     w.add_data(data)
@@ -213,16 +191,16 @@ if __name__ == '__main__':
 
     # Insert data
     try:
-        w = dbwriter(get_config("writer", "hostname"), \
-                    get_config("writer", "database"), \
-                    get_config("writer", "username"), \
-                    get_config("writer", "password"), \
-                    get_config("writer", "table"), \
-                    strict_column_checking=get_config("writer", "strict_column_checking", "boolean"), \
-                    skip_columns=map(lambda x: x.strip(), get_config("writer", "skip_columns", "string", "").split(",")), \
-                    pretend_queries=get_config("writer", "pretend_queries", "boolean"),\
-                    flexible_schema=get_config("writer", "flexible_schema", "boolean"),\
-                    force_text_fields=map(lambda x: x.strip(), get_config("writer", "force_text_fields", "string", "").split(","))\
+        w = dbwriter(c.get("writer", "hostname"), \
+                    c.get("writer", "database"), \
+                    c.get("writer", "username"), \
+                    c.get("writer", "password"), \
+                    c.get("writer", "table"), \
+                    strict_column_checking=c.get("writer", "strict_column_checking", "boolean"), \
+                    skip_columns=map(lambda x: x.strip(), c.get("writer", "skip_columns", "string", "").split(",")), \
+                    pretend_queries=c.get("writer", "pretend_queries", "boolean"),\
+                    flexible_schema=c.get("writer", "flexible_schema", "boolean"),\
+                    force_text_fields=map(lambda x: x.strip(), c.get("writer", "force_text_fields", "string", "").split(","))\
                     )
     except Exception, e:
         log.error("Error starting database writer")
@@ -242,15 +220,15 @@ if __name__ == '__main__':
             pbar.start()
 
         r = reader(filename, \
-                    get_config("reader", "regexp"), \
-                    skip_empty_lines=get_config("reader", "skip_empty_lines", "boolean", True), \
-                    skip_first_line=get_config("reader", "skip_first_line", "boolean", False), \
-                    delete_extra_spaces=get_config("reader", "delete_extra_spaces", "boolean", True),\
-                    static_fields=get_config("reader", "static_fields")\
+                    c.get("reader", "regexp"), \
+                    skip_empty_lines=c.get("reader", "skip_empty_lines", "boolean", True), \
+                    skip_first_line=c.get("reader", "skip_first_line", "boolean", False), \
+                    delete_extra_spaces=c.get("reader", "delete_extra_spaces", "boolean", True),\
+                    static_fields=c.get("reader", "static_fields")\
                     )
 
-        query_type = get_config("writer", "query_type", "string", default="insert") 
-        query_where = get_config("writer", "query_where", "string", default="")
+        query_type = c.get("writer", "query_type", "string", default="insert") 
+        query_where = c.get("writer", "query_where", "string", default="")
         try:
             for data in r:
                 sql_query = w.make_query(data, query_type = query_type, query_where = query_where)
