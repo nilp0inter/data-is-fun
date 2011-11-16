@@ -1,3 +1,26 @@
+#!/usr/bin/env python
+"""Text2DB. Genera bases de datos a partir de otros formatos.
+
+....................                       .....................
+.                  .                       .                   .
+.                  .                       .                   .
+.     READERS      .                       .      WRITERS      .
+.                  .                       .                   .
+.                  .                       .                   .
+....................                       .....................
+        ^          ..                    ..         |           
+        |            ..                ..           v           
+                       ................            ___          
+       /-/|            .              .           (___)         
+      /_/ |            .              .           |   |         
+      | |/|            .     CORE     .           |   |         
+      | | |            .              .           |   |         
+      |_|/             .              .           |___|         
+     PLAIN             ................          DATABASE       
+       FORMAT
+"""
+
+
 import os
 import sys
 import logging
@@ -7,13 +30,21 @@ import ConfigParser
 from reader import reader
 from dbwriter import dbwriter
 from dbinspector import dbinspector
-from table_maker import table_maker
 
 try:
     import progressbar
     progress = True
 except:
     progress = False
+
+__author__ = "Roberto Abdelkader"
+__credits__ = ["Roberto Abdelkader"]
+__license__ = "GPL"
+__version__ = "1.0"
+__maintainer__ = "Roberto Abdelkader"
+__email__ = "contacto@robertomartinezp.es"
+__status__ = "Production"
+
 
 def get_config(section, option, option_type="string", default=None):
     """

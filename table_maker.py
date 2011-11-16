@@ -1,4 +1,23 @@
+#!/usr/bin/env python
+"""Clase de inspección de base de datos.
+
+Esta clase simula una estructura de base de datos y recibe diccionarios
+clave-valor al igual que lo hacen los escritores. Su misión es generar
+excepciones si los datos que quieren ser introducidos en la base de 
+datos no concuerdan con el tipo de dato de cada una de las columnas, a 
+su vez provee las sentencias SQL necesarias para adaptar la tabla a las
+necesidades de los datos.
+"""
+
 import logging
+
+__author__ = "Roberto Abdelkader"
+__credits__ = ["Roberto Abdelkader"]
+__license__ = "GPL"
+__version__ = "1.0"
+__maintainer__ = "Roberto Abdelkader"
+__email__ = "contacto@robertomartinezp.es"
+__status__ = "Production"
 
 class field:
     def __init__(self, name, force_text=False, raise_on_change=True, \

@@ -1,16 +1,31 @@
+#!/usr/bin/env python
+"""Provee clases de escritores para utilizar desde el core.
+
+Los escritores reciben diccionarios clave-valor y los escriben en 
+distintos medios: bases de datos, xml, binario, etc.
+"""
+
+
+import sys
 import logging
 
 #
 # apt-get install python-mysqldb
 #
 import MySQLdb
+
 from table_maker import table_maker
 
-import sys
+__author__ = "Roberto Abdelkader"
+__credits__ = ["Roberto Abdelkader"]
+__license__ = "GPL"
+__version__ = "1.0"
+__maintainer__ = "Roberto Abdelkader"
+__email__ = "contacto@robertomartinezp.es"
+__status__ = "Production"
 
 class dbwriter:
-    """
-        Clase dbwriter. 
+    """ Clase dbwriter. 
             Prepara y ejecuta queries contra la base de datos basadas en diccionarios.
 
     """

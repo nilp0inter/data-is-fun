@@ -1,6 +1,24 @@
+#!/usr/bin/env python
+"""Lectores para text2db.
+
+Estas clases reciben interpretan datos desde distintos medios y los transforman
+en diccionarios clave valor para enviarlos al core. Deben ser iteradores ya que 
+el core los tratará como tal.
+"""
+
+
 import re
 import logging
 import sys
+
+__author__ = "Roberto Abdelkader"
+__credits__ = ["Roberto Abdelkader"]
+__license__ = "GPL"
+__version__ = "1.0"
+__maintainer__ = "Roberto Abdelkader"
+__email__ = "contacto@robertomartinezp.es"
+__status__ = "Production"
+
 
 class reader:
     """
