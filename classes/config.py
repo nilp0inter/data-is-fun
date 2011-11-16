@@ -3,6 +3,7 @@
 
 """
 
+import logging
 import ConfigParser
 
 __author__ = "Roberto Abdelkader"
@@ -18,6 +19,7 @@ class Config:
     def __init__(self, config_file):
         self.c = ConfigParser.RawConfigParser()
         self.c.read(config_file)
+        self.log = logging.getLogger('main.config')
 
     def get(self, section, option, option_type="string", default=None):
         """
@@ -25,6 +27,7 @@ class Config:
             Version safe getopt
 
         """
+
         value = default
         try:
             if option_type == "string":
@@ -38,7 +41,6 @@ class Config:
         except:
             value = default
 
-        log = logging.getLogger('main.config')
-        log.debug("Setting option %s\\%s = %s" % (section, option, value))
+        self.log.debug("Setting option %s\\%s = %s" % (section, option, value))
         return value
 

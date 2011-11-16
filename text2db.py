@@ -206,17 +206,18 @@ if __name__ == '__main__':
     # Insert data
     #
     try:
-        w = dbwriter(c.get("writer", "hostname"), \
-                    c.get("writer", "database"), \
-                    c.get("writer", "username"), \
-                    c.get("writer", "password"), \
-                    c.get("writer", "table"), \
-                    strict_column_checking=c.get("writer", "strict_column_checking", "boolean"), \
-                    skip_columns=map(lambda x: x.strip(), c.get("writer", "skip_columns", "string", "").split(",")), \
-                    pretend_queries=c.get("writer", "pretend_queries", "boolean"),\
-                    flexible_schema=c.get("writer", "flexible_schema", "boolean"),\
-                    force_text_fields=map(lambda x: x.strip(), c.get("writer", "force_text_fields", "string", "").split(","))\
-                    )
+        w = dbwriter(c)
+#        w = dbwriter(c.get("writer", "hostname"), \
+#                    c.get("writer", "database"), \
+#                    c.get("writer", "username"), \
+#                    c.get("writer", "password"), \
+#                    c.get("writer", "table"), \
+#                    strict_column_checking=c.get("writer", "strict_column_checking", "boolean"), \
+#                    skip_columns=map(lambda x: x.strip(), c.get("writer", "skip_columns", "string", "").split(",")), \
+#                    pretend_queries=c.get("writer", "pretend_queries", "boolean"),\
+#                    flexible_schema=c.get("writer", "flexible_schema", "boolean"),\
+#                    force_text_fields=map(lambda x: x.strip(), c.get("writer", "force_text_fields", "string", "").split(","))\
+#                    )
     except Exception, e:
         log.error("Error starting database writer")
         log.exception(e)
@@ -234,13 +235,14 @@ if __name__ == '__main__':
             pbar = progressbar.ProgressBar(widgets=widgets, maxval=file_len(filename))
             pbar.start()
 
-        r = reader(filename, \
-                    c.get("reader", "regexp"), \
-                    skip_empty_lines=c.get("reader", "skip_empty_lines", "boolean", True), \
-                    skip_first_line=c.get("reader", "skip_first_line", "boolean", False), \
-                    delete_extra_spaces=c.get("reader", "delete_extra_spaces", "boolean", True),\
-                    static_fields=c.get("reader", "static_fields")\
-                    )
+        r = reader(c, filename)
+#        r = reader(filename, \
+#                    c.get("reader", "regexp"), \
+#                    skip_empty_lines=c.get("reader", "skip_empty_lines", "boolean", True), \
+#                    skip_first_line=c.get("reader", "skip_first_line", "boolean", False), \
+#                    delete_extra_spaces=c.get("reader", "delete_extra_spaces", "boolean", True),\
+#                    static_fields=c.get("reader", "static_fields")\
+#                    )
 
         query_type = c.get("writer", "query_type", "string", default="insert") 
         query_where = c.get("writer", "query_where", "string", default="")

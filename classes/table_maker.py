@@ -16,8 +16,7 @@ __credits__ = ["Roberto Abdelkader"]
 __license__ = "GPL"
 __version__ = "1.0"
 __maintainer__ = "Roberto Abdelkader"
-__email__ = "contacto@robertomartinezp.es"
-__status__ = "Production"
+__email__ = "contacto@robertomartinez.es"
 
 class field:
     def __init__(self, name, force_text=False, raise_on_change=True, \

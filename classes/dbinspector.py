@@ -21,8 +21,7 @@ __credits__ = ["Roberto Abdelkader"]
 __license__ = "GPL"
 __version__ = "1.0"
 __maintainer__ = "Roberto Abdelkader"
-__email__ = "contacto@robertomartinezp.es"
-__status__ = "Production"
+__email__ = "contacto@robertomartinez.es"
 
 class dbinspector:
     """
@@ -30,9 +29,6 @@ class dbinspector:
             Crea tablas de MySQL.
 
     """
-
-#    def __init__(self, hostname, database, user, password, table, \
-#                skip_columns=[], force_text_fields = []):
 
     def __init__(self, config):
 
@@ -42,20 +38,18 @@ class dbinspector:
         self.database = config.get("writer", "database")
         self.username = config.get("writer", "username")
         self.password = config.get("writer", "password")
-
-
-        self.db = MySQLdb.connect(host=self.hostname, user=self.user, passwd=self.password, db=self.database)        
-
-        self.cursor = self.db.cursor()
-
         self.table = config.get("writer", "table")
+
+        self.skip_columns=map(lambda x: x.strip(), config.get("writer", "skip_columns", "string", "").split(","))
 
         self.force_text_fields = map(lambda x: x.strip(), config.get("writer", "force_text_fields", "string", "").split(","))
         if not self.force_text_fields:
             self.force_text_fields = []
 
+        self.db = MySQLdb.connect(host=self.hostname, user=self.user, passwd=self.password, db=self.database)        
+        self.cursor = self.db.cursor()
+
         self.must_create = False
-        self.skip_columns=map(lambda x: x.strip(), config.get("writer", "skip_columns", "string", "").split(","))
 
         self.columns = {}
 

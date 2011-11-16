@@ -21,8 +21,7 @@ __credits__ = ["Roberto Abdelkader"]
 __license__ = "GPL"
 __version__ = "1.0"
 __maintainer__ = "Roberto Abdelkader"
-__email__ = "contacto@robertomartinezp.es"
-__status__ = "Production"
+__email__ = "contacto@robertomartinez.es"
 
 class dbwriter:
     """ Clase dbwriter. 
@@ -30,36 +29,52 @@ class dbwriter:
 
     """
 
-    def __init__(self, hostname, database, user, password, \
-                table, strict_column_checking, skip_columns=[], \
-                pretend_queries=False, flexible_schema=False, \
-                force_text_fields=[]):
+#    def __init__(self, hostname, database, user, password, \
+#                table, strict_column_checking, skip_columns=[], \
+#                pretend_queries=False, flexible_schema=False, \
+#                force_text_fields=[]):
+    def __init__(self, config):
 
 
         self.log = logging.getLogger('main.writer')
-        self.db = MySQLdb.connect(host=hostname, user=user,\
-                                  passwd=password, db=database)        
 
+        self.hostname = config.get("writer", "hostname")
+        self.database = config.get("writer", "database")
+        self.username = config.get("writer", "username")
+        self.password = config.get("writer", "password")
+        self.table = config.get("writer", "table")
+
+        self.skip_columns=map(lambda x: x.strip(), config.get("writer", "skip_columns", "string", "").split(","))
+
+        self.force_text_fields = map(lambda x: x.strip(), config.get("writer", "force_text_fields", "string", "").split(","))
+        if not self.force_text_fields:
+            self.force_text_fields = []
+
+        self.db = MySQLdb.connect(host=self.hostname, user=self.user, passwd=self.password, db=self.database)        
         self.cursor = self.db.cursor()
 
-        self.table = table
-        self.strict_column_checking = strict_column_checking
-        self.pretend_queries = pretend_queries
+#        self.db = MySQLdb.connect(host=hostname, user=user,\
+#                                  passwd=password, db=database)        
+#
+#        self.cursor = self.db.cursor()
+#
+#        self.table = table
+#        self.strict_column_checking = strict_column_checking
+
+        self.pretend_queries = config.get("writer", "pretend_queries", "boolean")
         if not pretend_queries:
-            self.flexible_schema = flexible_schema
-            self.force_text_fields = force_text_fields
+            self.flexible_schema = config.get("writer", "flexible_schema", "boolean")
+            self.force_text_fields = map(lambda x: x.strip(), config.get("writer", "force_text_fields", "string", "").split(","))
         else:
             self.flexible_schema = False
             self.force_text_fields = []
-
-        if self.pretend_queries:
             self.log.warning("Writer will pretend queries, no changes will be made to database.")
 
         self.columns = {}
 
 
         if type(skip_columns) == type([]):
-            self.skip_columns = skip_columns
+            self.skip_columns = map(lambda x: x.strip(), config.get("writer", "skip_columns", "string", "").split(","))
         else:
             self.skip_columns = []
 

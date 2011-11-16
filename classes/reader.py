@@ -16,7 +16,7 @@ __credits__ = ["Roberto Abdelkader"]
 __license__ = "GPL"
 __version__ = "1.0"
 __maintainer__ = "Roberto Abdelkader"
-__email__ = "contacto@robertomartinezp.es"
+__email__ = "contacto@robertomartinez.es"
 __status__ = "Production"
 
 
@@ -45,7 +45,7 @@ class reader:
             self.regexp = [re.compile(regexp)]
             self.long_regexp = False
         except:
-            # Python nos soporta mas de 100 grupos nominales.
+            # Python no soporta mas de 100 grupos nominales.
             # Como "probablemente" estemos utilizando una expresion regular para capturar
             # campos de ancho fijo, generaremos N expresiones regulares con un maximo 
             # de 100 campos nominales cada una
