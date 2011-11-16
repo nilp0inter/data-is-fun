@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""Clase de inspección de base de datos.
+"""Clase de inspeccion de base de datos.
 
-Interfaz para table_maker, dependiendo de la configuración crea o modifica
+Interfaz para table_maker, dependiendo de la configuracion crea o modifica
 tablas de MySQL.
 """
 

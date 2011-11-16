@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Clase de configuración básica sobre ficheros de texto.
+"""Clase de configuracion basica sobre ficheros de texto.
 
 """
 

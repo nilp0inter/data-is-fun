@@ -3,7 +3,7 @@
 
 Estas clases reciben interpretan datos desde distintos medios y los transforman
 en diccionarios clave valor para enviarlos al core. Deben ser iteradores ya que 
-el core los tratará como tal.
+el core los tratara como tal.
 """
 
 
@@ -58,16 +58,16 @@ class reader:
                 self.regexp.append(re.compile("".join(groups[0:99])))
                 del groups[0:99]
 
-        self.skip_empty_lines = config.get("reader", "skip_empty_lines", "boolean", True), \
+        self.skip_empty_lines = config.get("reader", "skip_empty_lines", "boolean", True)
  
-        self.delete_extra_spaces = config.get("reader", "delete_extra_spaces", "boolean", True),\
+        self.delete_extra_spaces = config.get("reader", "delete_extra_spaces", "boolean", True)
 
-        skip_first_line=config.get("reader", "skip_first_line", "boolean", False), \
+        skip_first_line=config.get("reader", "skip_first_line", "boolean", False)
         if skip_first_line:
             self.log.warning("Skipping first line...")
             self.input_file.readline()
 
-        static_fields=config.get("reader", "static_fields")\
+        static_fields=config.get("reader", "static_fields")
         if static_fields and type(static_fields) == str:
             self.static_fields = dict()
             for item in static_fields.split(","):

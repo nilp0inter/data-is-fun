@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""Clase de inspección de base de datos.
+"""Clase de inspeccion de base de datos.
 
 Esta clase simula una estructura de base de datos y recibe diccionarios
-clave-valor al igual que lo hacen los escritores. Su misión es generar
+clave-valor al igual que lo hacen los escritores. Su mision es generar
 excepciones si los datos que quieren ser introducidos en la base de 
 datos no concuerdan con el tipo de dato de cada una de las columnas, a 
 su vez provee las sentencias SQL necesarias para adaptar la tabla a las
