@@ -27,9 +27,6 @@ class reader:
          y devuelve el diccionario de valores parseados.
     """
 
-#    def __init__(self, input_file, regexp, skip_empty_lines = True, \
-#                skip_first_line = False, delete_extra_spaces=True, \
-#                static_fields = None):
     def __init__(self, config, input_file):
 
         regexp = config.get("reader", "regexp")

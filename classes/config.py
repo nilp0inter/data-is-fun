@@ -11,7 +11,7 @@ __credits__ = ["Roberto Abdelkader"]
 __license__ = "GPL"
 __version__ = "1.0"
 __maintainer__ = "Roberto Abdelkader"
-__email__ = "contacto@robertomartinezp.es"
+__email__ = "contacto@robertomartinez.es"
 __status__ = "Production"
 
 

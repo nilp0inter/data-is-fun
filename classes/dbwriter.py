@@ -29,10 +29,7 @@ class dbwriter:
 
     """
 
-#    def __init__(self, hostname, database, user, password, \
-#                table, strict_column_checking, skip_columns=[], \
-#                pretend_queries=False, flexible_schema=False, \
-#                force_text_fields=[]):
+
     def __init__(self, config):
 
 
@@ -51,14 +48,6 @@ class dbwriter:
 
         self.db = MySQLdb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database)        
         self.cursor = self.db.cursor()
-
-#        self.db = MySQLdb.connect(host=hostname, user=user,\
-#                                  passwd=password, db=database)        
-#
-#        self.cursor = self.db.cursor()
-#
-#        self.table = table
-#        self.strict_column_checking = strict_column_checking
 
         self.pretend_queries = config.get("writer", "pretend_queries", "boolean")
         if not self.pretend_queries:
@@ -110,8 +99,6 @@ class dbwriter:
             self.log.debug("Pretending query: %s" % sql)
         else:
             self.log.debug("Executing query: %s" % sql)
-
-#            self.db.query(sql)        
             self.cursor.execute(sql)
 
     def do_rollback(self):
@@ -142,6 +129,7 @@ class dbwriter:
             Obtiene la lista de columnas de la base de datos.
 
         """
+
         self.db.query("SHOW COLUMNS FROM %s" % \
                       self.db.escape_string(self.table) )
         res = self.db.store_result()
