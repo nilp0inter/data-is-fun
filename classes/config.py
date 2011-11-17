@@ -31,13 +31,13 @@ class Config:
         value = default
         try:
             if option_type == "string":
-                value = c.get(section,option)
+                value = self.c.get(section,option)
             elif option_type == "boolean":
-                value = c.getboolean(section,option)
+                value = self.c.getboolean(section,option)
             elif option_type == "int":
-                value = c.getint(section,option)
+                value = self.c.getint(section,option)
             elif option_type == "float":
-                value = c.getfloat(section,option)
+                value = self.c.getfloat(section,option)
         except:
             value = default
 

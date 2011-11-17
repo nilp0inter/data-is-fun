@@ -44,13 +44,12 @@ class dbwriter:
         self.password = config.get("writer", "password")
         self.table = config.get("writer", "table")
 
-        self.skip_columns=map(lambda x: x.strip(), config.get("writer", "skip_columns", "string", "").split(","))
 
         self.force_text_fields = map(lambda x: x.strip(), config.get("writer", "force_text_fields", "string", "").split(","))
         if not self.force_text_fields:
             self.force_text_fields = []
 
-        self.db = MySQLdb.connect(host=self.hostname, user=self.user, passwd=self.password, db=self.database)        
+        self.db = MySQLdb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database)        
         self.cursor = self.db.cursor()
 
 #        self.db = MySQLdb.connect(host=hostname, user=user,\
@@ -62,7 +61,7 @@ class dbwriter:
 #        self.strict_column_checking = strict_column_checking
 
         self.pretend_queries = config.get("writer", "pretend_queries", "boolean")
-        if not pretend_queries:
+        if not self.pretend_queries:
             self.flexible_schema = config.get("writer", "flexible_schema", "boolean")
             self.force_text_fields = map(lambda x: x.strip(), config.get("writer", "force_text_fields", "string", "").split(","))
         else:
@@ -72,10 +71,10 @@ class dbwriter:
 
         self.columns = {}
 
+        self.strict_column_checking=config.get("writer", "strict_column_checking", "boolean")
 
-        if type(skip_columns) == type([]):
-            self.skip_columns = map(lambda x: x.strip(), config.get("writer", "skip_columns", "string", "").split(","))
-        else:
+        self.skip_columns=map(lambda x: x.strip(), config.get("writer", "skip_columns", "string", "").split(","))
+        if type(self.skip_columns) != type([]):
             self.skip_columns = []
 
         # Load table schema and table_maker

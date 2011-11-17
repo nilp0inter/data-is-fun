@@ -418,12 +418,12 @@ class table_maker:
             else:
                 fields = str(value)
 
-        partitions = """/*!50100 PARTITION BY RANGE (YEAR(data_date))
-SUBPARTITION BY HASH (MONTH(data_date))
+        partitions = """/*!50100 PARTITION BY RANGE (UNIX_TIMESTAMP(data_date))
+SUBPARTITION BY HASH (UNIX_TIMESTAMP(data_date))
 ("""
         for year in range(self.start_year, self.end_year):
             this_year = year - 1
-            partitions = partitions + """PARTITION p%(this_year)s VALUES LESS THAN (%(year)s)
+            partitions = partitions + """\nPARTITION p%(this_year)s VALUES LESS THAN (UNIX_TIMESTAMP('%(year)s-01-01 00:00:00'))
                 (SUBPARTITION s_dec_%(this_year)s ENGINE = InnoDB,
                   SUBPARTITION s_jan_%(this_year)s ENGINE = InnoDB,
                   SUBPARTITION s_feb_%(this_year)s ENGINE = InnoDB,

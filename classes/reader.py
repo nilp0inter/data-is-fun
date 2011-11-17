@@ -32,7 +32,7 @@ class reader:
 #                static_fields = None):
     def __init__(self, config, input_file):
 
-        regexp = config.get("reader", "regexp"), \
+        regexp = config.get("reader", "regexp")
 
         self.log = logging.getLogger('main.reader')
 

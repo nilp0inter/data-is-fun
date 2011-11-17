@@ -46,7 +46,7 @@ class dbinspector:
         if not self.force_text_fields:
             self.force_text_fields = []
 
-        self.db = MySQLdb.connect(host=self.hostname, user=self.user, passwd=self.password, db=self.database)        
+        self.db = MySQLdb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database)        
         self.cursor = self.db.cursor()
 
         self.must_create = False
