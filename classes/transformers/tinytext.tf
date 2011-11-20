@@ -2,7 +2,7 @@
 name=MySQL tinytext
 regexp=^(?P<data>.*)$
 formatter="%(data)s"
-output_format=tinytext
+output_format=TINYTEXT
 
 [functions]
-matcher_data=lambda x: len(x)<255
+matcher_data=lambda x: len(x['data'])<=255
