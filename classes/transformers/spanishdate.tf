@@ -1,9 +1,11 @@
 [transformer]
 name=Spanish date format
+compatible_writers=mysql
 # 9/6/85
 regexp=^(?P<day>\d{1,2})/(?P<month>\d{1,2})/(?P<year>\d{1,4})$
 formatter=date('%(year)s-%(month)s-%(day)s')
-output_format=DATE
+output_type=date
+type_format=DATE
 
 [functions]
 matcher_day=lambda x: int(x['day'])>=1 and int(x['day'])<=31

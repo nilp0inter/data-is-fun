@@ -24,9 +24,6 @@ __status__ = "Production"
 from config import Config
 from topological_sort import robust_topological_sort as ts
 
-
-from pprint import PrettyPrinter as pp
-
 class tvalue:
     def __init__(self, original, transformed, datatype, size=None, typesize=None):
         self.original = original
@@ -42,10 +39,22 @@ class transformer:
     def __init__(self, config_file, nullable=False):
 
         self.config_file = config_file
+        self.nullable = nullable
+
         self.config = Config(self.config_file)
 
         self.name = self.config.get("transformer", "name", "string", "")
         self.regexp = self.config.get("transformer", "regexp", "string", "")
+        self.formatter = self.config.get("transformer", "formatter", "string", "")
+        self.output_type = self.config.get("transformer", "output_type", "string", "").upper()
+        self.type_format = self.config.get("transformer", "type_format", "string", "")
+        self.compatible_writers = map(lambda x: x.strip(), self.config.get("transformer", "compatible_writers", "string", "").split(","))
+        if not self.compatible_writers:
+            self.compatible_writers= []
+        self.loaded = False
+
+    def load(self):
+        self._regexp = re.compile(self.regexp)
 
         try:
             functions = self.config.c.items('functions')
@@ -93,17 +102,13 @@ class transformer:
             self.size = False
             self.typesize = False
 
-        self.formatter = self.config.get("transformer", "formatter", "string", "")
-
-        self.output_format = self.config.get("transformer", "output_format", "string", "")
-
-        self._regexp = re.compile(self.regexp)
-
-        self.nullable = nullable
+        self.loaded = True
 
     def _match(self, s):
         """Match string with transformer and return groups.
         """
+
+        assert self.loaded
 
         match = self._regexp.match(s)
         if match:
@@ -132,7 +137,7 @@ class transformer:
             else:
                 typesize = None
 
-            return tvalue(s, None, self.output_format, size, typesize)
+            return tvalue(s, None, self.type_format, size, typesize)
         else:
             if self.nullable:
                 return tvalue(s, None, None)
@@ -140,7 +145,7 @@ class transformer:
                 return False
 
     def __repr__(self):
-        return "%s" % (self.output_format)
+        return "%s %s" % (self.type_format, ("NULL" if self.nullable else "NOT NULL"))
 
     def transform(self, s):
         """Return string transformation.
@@ -173,7 +178,7 @@ class transformer:
                 else:
                     typesize = None
 
-                return tvalue(s, formatted, self.output_format, size, typesize)
+                return tvalue(s, formatted, self.type_format, size, typesize)
 
             except Exception, e:
                 if self.nullable:
@@ -183,23 +188,35 @@ class transformer:
         elif self.nullable:
             return tvalue(s, None, None) # NULL
         else:
-            raise TypeError('Can\'t transform (%s) to type %s using %s transformer' % (s, self.output_format, self.name))
+            raise TypeError('Can\'t transform (%s) to type %s using %s transformer' % (s, self.type_format, self.name))
 
 class transform_factory:
-    def __init__(self, transformers_path, force_output_format=False):
+    def __init__(self, transformers_path, force_output_type = False,
+            force_output_writer = False, nullable = False):
         self.transformers = {} 
-        if force_output_format:
-            self.force_output_format = force_output_format.upper()
+        if force_output_type:
+            if type(force_output_type) is not list:
+                force_output_type = [ force_output_type ]
+            self.force_output_type = map(lambda x: x.upper(), force_output_type)
         else:
-            self.force_output_format = False
+            self.force_output_type = False
+
+        self.force_output_writer = force_output_writer
 
         for infile in glob.glob( os.path.join(transformers_path, '*.tf') ):
-            t = transformer(infile)
-            if self.force_output_format:
-                if t.output_format != self.force_output_format:
+            t = transformer(infile, nullable = nullable)
+            if self.force_output_type:
+                if t.output_type not in self.force_output_type:
                     del t
                     continue
 
+            if self.force_output_writer:
+                if self.force_output_writer not in t.compatible_writers:
+                    del t
+                    continue
+
+            # Load regex and functions if not discarded
+            t.load()
             self.transformers[t] = {'accumulated_size' : None, 
                                     'nulls' : 0,
                                     'accumulated_typesize' : None}
@@ -224,6 +241,12 @@ class transform_factory:
                 self.transformers[t]['nulls'] += 1
         return m
 
+    def get_transformer_definition(self, t, stats):
+        if stats['accumulated_typesize']:
+            return str(t) % (','.join(map(lambda x: str(x), stats['accumulated_typesize'])))
+        else:
+            return str(t)
+
     def get_transformers(self, s):
         """Return matching transformers
         """
@@ -233,18 +256,28 @@ class transform_factory:
         """Adjust transformer list to match new data
         """
         map(lambda x: self.transformers.__delitem__(x), set(self.transformers.keys()).difference(set(self.get_transformers(s))))
-        for t,stats in self.transformers.iteritems():
-            if stats['accumulated_typesize']:
-                print t.transform(s), str(t) % (','.join(map(lambda x: str(x), stats['accumulated_typesize']))),stats['accumulated_size']
-            else:
-                print t.transform(s), str(t),stats['accumulated_size']
+
+        ## DEBUG
+        #for t,stats in self.transformers.iteritems():
+        #    print self.get_transformer_definition(t, stats)
+        
+    def get_best_definition(self):
+        # Get the transformer with lower nulls and accumulated_size
+        s = sorted(self.transformers.iteritems(), key = lambda x: (x[1]['nulls'], x[1]['accumulated_size']) )    
+        return self.get_transformer_definition(s[0][0], self.transformers[s[0][0]])
         
 if __name__ == '__main__':
-    t = transform_factory('transformers/')
+    t = transform_factory('transformers/', [ "varchar", "text", "tinytext", "decimal", "unsigned_decimal" ] )
     value = "3"
     t.adjust("3")
-    print ""
+    print t.get_best_definition()
     t.adjust("13.5")
-    print ""
+    print t.get_best_definition()
     t.adjust("123.456")
-    print ""
+    print t.get_best_definition()
+    t.adjust("+123456789.01234567890")
+    print t.get_best_definition()
+    t.adjust("-1234567890.01234567890")
+    print t.get_best_definition()
+    t.adjust("lalala")
+    print t.get_best_definition()
