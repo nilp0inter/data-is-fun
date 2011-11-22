@@ -39,11 +39,17 @@ class tvalue:
         return "%s" % self.transformed
 
 class transformer:
-    def __init__(self, config_file, nullable=False):
+    def __init__(self, config_file, nullable=False, match_count = 0):
 
-        self.config_file = config_file
         self.nullable = nullable
+        self.match_count = match_count
+        self.last_type_size = []
+        self.loaded = False
+        self.config_file = config_file
 
+        self.log = logging.getLogger('main.transformer')
+
+        # Config options
         self.config = Config(self.config_file)
 
         self.name = self.config.get("transformer", "name", "string", "")
@@ -52,11 +58,9 @@ class transformer:
         self.output_type = self.config.get("transformer", "output_type", "string", "").upper()
         self.type_format = self.config.get("transformer", "type_format", "string", "")
         self.compatible_writers = map(lambda x: x.strip(), self.config.get("transformer", "compatible_writers", "string", "").split(","))
-        self.last_type_size = []
 
         if not self.compatible_writers:
-            self.compatible_writers= []
-        self.loaded = False
+            self.compatible_writers = []
 
     def load(self):
         self._regexp = re.compile(self.regexp)
@@ -67,47 +71,80 @@ class transformer:
             functions = False
         
         if functions:
-            # Get and compile pre-format lambda functions (groups{}) => str)
-            pre_format_pairs = dict(filter(lambda x: x[0].startswith('preformat_'), functions))
-            self.pre_format = {}
-            for name, f in pre_format_pairs.iteritems():
-                self.pre_format[name[10:]] = eval(compile(f, '<string>','eval'))
+            try:
+                # Get and compile pre-format lambda functions (groups{}) => str)
+                pre_format_pairs = dict(filter(lambda x: x[0].startswith('preformat_'), functions))
+                self.f_preformat = {}
+                for name, f in pre_format_pairs.iteritems():
+                    try:
+                        self.f_preformat[name[10:]] = eval(compile(f, '<string>','eval'), {}, {})
+                    except Exception, e:
+                        self.log.error("Error compiling preformat function %s at %s(%s) [%s]" % (name, self.name, self.config_file, e))
+                        raise
+                         
 
-            # Get and compile matcher lambda functions (groups{}) => True || False
-            matcher_pairs = dict(filter(lambda x: x[0].startswith('matcher_'), functions))
-            self.matchers = {}
-            for name, f in matcher_pairs.iteritems():
-                self.matchers[name[8:]] = eval(compile(f, '<string>','eval'))
+                # Get and compile matcher lambda functions (groups{}) => True || False
+                matcher_pairs = dict(filter(lambda x: x[0].startswith('matcher_'), functions))
+                self.f_matchers = {}
+                for name, f in matcher_pairs.iteritems():
+                    try:
+                        self.f_matchers[name[8:]] = eval(compile(f, '<string>','eval'), {}, {})
+                    except Exception, e:
+                        self.log.error("Error compiling matcher function %s at %s(%s) [%s]" % (name, self.name, self.config_file, e))
+                        raise
 
-            # Get and compile post-format lambda function (formated_str, values) => final_str
-            post_format = self.config.get("functions", "postformat", "string", "")
-            if post_format:
-                self.post_format = eval(compile(post_format, '<string>','eval'))
-            else:
-                self.post_format = False
+                # Get and compile post-format lambda function (formated_str, values) => final_str
+                post_format = self.config.get("functions", "postformat", "string", "")
+                if post_format:
+                    try:
+                        self.f_postformat = eval(compile(post_format, '<string>','eval'), {}, {})
+                    except Exception, e:
+                        self.log.error("Error compiling postformat function at %s(%s) [%s]" % (self.name, self.config_file, e))
+                        raise
+                else:
+                    self.f_postformat = False
 
-            # Get and compile size lambda function (groups{}) => size || None
-            size = self.config.get("functions", "size", "string", "")
-            if size:
-                self.size = eval(compile(size, '<string>','eval'))
-            else:
-                self.size = False
+                # Get and compile size lambda function (groups{}) => size || None
+                size = self.config.get("functions", "size", "string", "")
+                if size:
+                    try:
+                        self.f_size = eval(compile(size, '<string>','eval'), {}, {})
+                    except Exception, e:
+                        self.log.error("Error compiling size function at %s(%s) [%s]" % (self.name, self.config_file, e))
+                        raise
+                else:
+                    self.f_size = False
 
-            # Get and compile typesize lambda function (groups{}) => list || None
-            typesize = self.config.get("functions", "typesize", "string", "")
-            if typesize:
-                self.typesize = eval(compile(typesize, '<string>','eval'))
-            else:
-                self.typesize = False
+                # Get and compile typesize lambda function (groups{}) => list || None
+                typesize = self.config.get("functions", "typesize", "string", "")
+                if typesize:
+                    try:
+                        self.f_typesize = eval(compile(typesize, '<string>','eval'), {}, {})
+                    except Exception, e:
+                        self.log.error("Error compiling typesize function at %s(%s) [%s]" % (self.name, self.config_file, e))
+                        raise
+                else:
+                    self.f_typesize = False
+            except:
+                self.log.warning("Disabling transformer %s" % self.name)
+                return
 
         else:
-            self.post_format = False
-            self.matchers = False
-            self.pre_format = False
-            self.size = False
-            self.typesize = False
+            self.f_postformat = False
+            self.f_matchers = False
+            self.f_preformat = False
+            self.f_size = False
+            self.f_typesize = False
 
         self.loaded = True
+
+    def _get_udfs_input(self, groups):
+        r = {}
+        r.update(groups)
+        r.update({ '_last_type_size': self.last_type_size,\
+                '_match_count': self.match_count})
+
+        return r
 
     def _match(self, s):
         """Match string with transformer and return groups.
@@ -115,12 +152,12 @@ class transformer:
 
         assert self.loaded
 
-        match = self._regexp.match(s)
-        if match:
-            groups = match.groupdict()
-            if self.matchers:
+        m = self._regexp.match(s)
+        if m:
+            groups = m.groupdict()
+            if self.f_matchers:
                 # Return True if all matcher functions return True
-                if all(map(lambda x: self.matchers[x](groups) if self.matchers.has_key(x) and groups[x]!=None else True, groups.keys())):
+                if all(map(lambda x: self.f_matchers[x](groups) if self.f_matchers.has_key(x) and groups[x]!=None else True, groups.keys())):
                     return groups
             else:
                 return groups
@@ -132,15 +169,15 @@ class transformer:
 
         m = self._match(s)
         if m != False:
-            m.update({ '_last_type_size': self.last_type_size})
-            if self.size:
-                size = self.size(m)
+            if self.f_size:
+                size = self.f_size(self._get_udfs_input(m))
             else:
                 size = None
             # Calc typesize
-            if self.typesize:
-                self.last_type_size = self.typesize(m)
+            if self.f_typesize:
+                self.last_type_size = self.f_typesize(m)
 
+            self.match_count += 1
             return tvalue(s, None, self.type_format, size, self.last_type_size)
         else:
             if self.nullable:
@@ -154,32 +191,32 @@ class transformer:
     def transform(self, s):
         """Return string transformation.
         """
-      
+        
         groups = self._match(s)
         if groups != False:
             try:
-                if self.pre_format:
+                if self.f_preformat:
                     # Execute preformat functions
                     for name, value in groups.iteritems():
-                        if name in self.pre_format.keys():
-                            groups[name] = self.pre_format[name](groups)
+                        if name in self.f_preformat.keys():
+                            groups[name] = self.f_preformat[name](groups)
 
                 formatted = self.formatter % dict(map(lambda x: (x[0], escape(x[1]) if type(x[1]) == str else x[1]), groups.iteritems()))
 
                 # Useless functionality?
-                if self.post_format:
-                    return self.post_format(formatted, groups)
+                if self.f_postformat:
+                    return self.f_postformat(formatted, groups)
 
-                groups.update({ '_last_type_size': self.last_type_size})
+                groups = self._get_udfs_input(groups)
                 # Calc size
-                if self.size:
-                    size = self.size(groups)
+                if self.f_size:
+                    size = self.f_size(groups)
                 else:
                     size = None
 
                 # Calc typesize
-                if self.typesize:
-                    self.last_type_size = self.typesize(groups)
+                if self.f_typesize:
+                    self.last_type_size = self.f_typesize(groups)
 
                 return tvalue(s, formatted, self.type_format, size, self.last_type_size)
 
@@ -222,6 +259,10 @@ class transform_factory:
 
             # Load regex and functions if not discarded
             t.load()
+            if not t.loaded:
+                del t
+                continue
+
             self.transformers[t] = {'accumulated_size' : None, 
                                     'nulls' : 0,
                                     'accumulated_typesize' : type_size}
