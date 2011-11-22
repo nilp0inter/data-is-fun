@@ -12,6 +12,7 @@ import re
 import os
 import glob
 import logging
+from MySQLdb import escape_string as escape
 
 __author__ = "Roberto Abdelkader"
 __credits__ = ["Roberto Abdelkader"]
@@ -21,8 +22,10 @@ __maintainer__ = "Roberto Abdelkader"
 __email__ = "contacto@robertomartinez.es"
 __status__ = "Production"
 
+
 from config import Config
 from topological_sort import robust_topological_sort as ts
+
 
 class tvalue:
     def __init__(self, original, transformed, datatype, size=None, typesize=None):
@@ -49,6 +52,8 @@ class transformer:
         self.output_type = self.config.get("transformer", "output_type", "string", "").upper()
         self.type_format = self.config.get("transformer", "type_format", "string", "")
         self.compatible_writers = map(lambda x: x.strip(), self.config.get("transformer", "compatible_writers", "string", "").split(","))
+        self.last_type_size = []
+
         if not self.compatible_writers:
             self.compatible_writers= []
         self.loaded = False
@@ -127,17 +132,16 @@ class transformer:
 
         m = self._match(s)
         if m != False:
+            m.update({ '_last_type_size': self.last_type_size})
             if self.size:
                 size = self.size(m)
             else:
                 size = None
             # Calc typesize
             if self.typesize:
-                typesize = self.typesize(m)
-            else:
-                typesize = None
+                self.last_type_size = self.typesize(m)
 
-            return tvalue(s, None, self.type_format, size, typesize)
+            return tvalue(s, None, self.type_format, size, self.last_type_size)
         else:
             if self.nullable:
                 return tvalue(s, None, None)
@@ -160,12 +164,13 @@ class transformer:
                         if name in self.pre_format.keys():
                             groups[name] = self.pre_format[name](groups)
 
-                formatted = self.formatter % groups 
+                formatted = self.formatter % dict(map(lambda x: (x[0], escape(x[1]) if type(x[1]) == str else x[1]), groups.iteritems()))
 
                 # Useless functionality?
                 if self.post_format:
                     return self.post_format(formatted, groups)
 
+                groups.update({ '_last_type_size': self.last_type_size})
                 # Calc size
                 if self.size:
                     size = self.size(groups)
@@ -174,11 +179,9 @@ class transformer:
 
                 # Calc typesize
                 if self.typesize:
-                    typesize = self.typesize(groups)
-                else:
-                    typesize = None
+                    self.last_type_size = self.typesize(groups)
 
-                return tvalue(s, formatted, self.type_format, size, typesize)
+                return tvalue(s, formatted, self.type_format, size, self.last_type_size)
 
             except Exception, e:
                 if self.nullable:
@@ -192,8 +195,11 @@ class transformer:
 
 class transform_factory:
     def __init__(self, transformers_path, force_output_type = False,
-            force_output_writer = False, nullable = False):
+            force_output_writer = False, nullable = False, type_size = None):
+
         self.transformers = {} 
+        self.nullable = nullable 
+
         if force_output_type:
             if type(force_output_type) is not list:
                 force_output_type = [ force_output_type ]
@@ -202,7 +208,6 @@ class transform_factory:
             self.force_output_type = False
 
         self.force_output_writer = force_output_writer
-
         for infile in glob.glob( os.path.join(transformers_path, '*.tf') ):
             t = transformer(infile, nullable = nullable)
             if self.force_output_type:
@@ -219,7 +224,14 @@ class transform_factory:
             t.load()
             self.transformers[t] = {'accumulated_size' : None, 
                                     'nulls' : 0,
-                                    'accumulated_typesize' : None}
+                                    'accumulated_typesize' : type_size}
+
+    def set_nullable(self):
+        if not self.nullable:
+            for t in self.transformers.keys():
+                t.nullable = True
+            self.nullable = True
+        
 
     def _match(self, t, s):
         """Call transformer match and feed statistics
@@ -243,7 +255,10 @@ class transform_factory:
 
     def get_transformer_definition(self, t, stats):
         if stats['accumulated_typesize']:
-            return str(t) % (','.join(map(lambda x: str(x), stats['accumulated_typesize'])))
+            try:
+                return str(t) % (','.join(map(lambda x: str(x), stats['accumulated_typesize'])))
+            except TypeError:
+                return str(t)
         else:
             return str(t)
 
@@ -255,29 +270,36 @@ class transform_factory:
     def adjust(self, s):
         """Adjust transformer list to match new data
         """
+
         map(lambda x: self.transformers.__delitem__(x), set(self.transformers.keys()).difference(set(self.get_transformers(s))))
 
         ## DEBUG
         #for t,stats in self.transformers.iteritems():
         #    print self.get_transformer_definition(t, stats)
-        
-    def get_best_definition(self):
+    
+    def _get_best_transformer(self):
         # Get the transformer with lower nulls and accumulated_size
         s = sorted(self.transformers.iteritems(), key = lambda x: (x[1]['nulls'], x[1]['accumulated_size']) )    
-        return self.get_transformer_definition(s[0][0], self.transformers[s[0][0]])
+        return s[0][0]
+
+    def get_best_definition(self):
+        # Get the transformer with lower nulls and accumulated_size
+        t = self._get_best_transformer()
+        return self.get_transformer_definition(t, self.transformers[t])
+
+    def transform(self, value):
+        t = self._get_best_transformer()
+        return t.transform(value)
         
 if __name__ == '__main__':
-    t = transform_factory('transformers/', [ "varchar", "text", "tinytext", "decimal", "unsigned_decimal" ] )
-    value = "3"
-    t.adjust("3")
+    t = transform_factory('/home/segl/text2db/classes/transformers/', force_output_writer = 'mysql' )
+    t.adjust("70")
     print t.get_best_definition()
-    t.adjust("13.5")
+    t.adjust("712")
     print t.get_best_definition()
-    t.adjust("123.456")
+    t.adjust("723")
     print t.get_best_definition()
-    t.adjust("+123456789.01234567890")
+    t.adjust("734")
     print t.get_best_definition()
-    t.adjust("-1234567890.01234567890")
-    print t.get_best_definition()
-    t.adjust("lalala")
+    t.adjust("7")
     print t.get_best_definition()

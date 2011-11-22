@@ -187,27 +187,30 @@ class dbwriter:
                 self.log.debug("Skipping column in regexp: %s" % key)
                 continue
 
-            try:
-                # Ugly... Get column datatype
-                if self.columns[key][1].upper().find("VARCHAR") != -1 or \
-                    self.columns[key][1].upper().find("TEXT") != -1 or \
-                    self.columns[key][1].upper().find("BLOB") != -1:
-                    quote_char = '"'
-                else:
-                    quote_char = ''
-            except:
-                quote_char = '"'
+##            try:
+##                # Ugly... Get column datatype
+##                if self.columns[key][1].upper().find("VARCHAR") != -1 or \
+##                    self.columns[key][1].upper().find("TEXT") != -1 or \
+##                    self.columns[key][1].upper().find("BLOB") != -1:
+##                    quote_char = '"'
+##                else:
+##                    quote_char = ''
+##            except:
+##                quote_char = '"'
+
 
             columns.append("`" + key + "`")
 
-            if value == "":
-                value = "NULL"
-                quote_char = ''
+##            if value == "":
+##                value = "NULL"
+##                quote_char = ''
 
             if query_type == "insert":
-                setstring = quote_char + self.db.escape_string(value) + quote_char
+                #setstring = quote_char + self.db.escape_string(value) + quote_char
+                setstring = str(self.schema.fields[key].transform(value))
             elif query_type == "update":
-                setstring = "`" + key + "` = " + quote_char + self.db.escape_string(value) + quote_char
+                #setstring = "`" + key + "` = " + quote_char + self.db.escape_string(value) + quote_char
+                setstring = "`" + key + "` = " + str(self.schema.fields[key].transform(value))
 
             setstrings.append(setstring)
 
