@@ -330,7 +330,13 @@ class transform_factory:
 
     def transform(self, value):
         t = self._get_best_transformer()
-        return t.transform(value)
+        try:
+            return t.transform(value)
+        except TypeError:
+            self.adjust(value)
+            t = self._get_best_transformer()
+            return t.transform(value)
+
         
 if __name__ == '__main__':
     t = transform_factory('/home/segl/text2db/classes/transformers/', force_output_writer = 'mysql' )

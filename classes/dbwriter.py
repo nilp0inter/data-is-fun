@@ -87,8 +87,7 @@ class dbwriter:
                 self.log.info("Creating table %s" % self.table)
                 self.do_query(str(self.schema))
 
-        if self.flexible_schema:
-            self.schema = table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields, fields = self.get_columns().values())
+        self.schema = table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields, fields = self.get_columns().values())
         
     def __del__(self):
         self.cursor.close()
