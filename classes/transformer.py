@@ -236,6 +236,7 @@ class transform_factory:
 
         self.transformers = {} 
         self.nullable = nullable 
+        self.virgin = True
 
         if force_output_type:
             if type(force_output_type) is not list:
@@ -311,7 +312,7 @@ class transform_factory:
     def adjust(self, s):
         """Adjust transformer list to match new data
         """
-
+        self.virgin = False
         map(lambda x: self.transformers.__delitem__(x), set(self.transformers.keys()).difference(set(self.get_transformers(s))))
 
         ## DEBUG
@@ -329,13 +330,11 @@ class transform_factory:
         return self.get_transformer_definition(t, self.transformers[t])
 
     def transform(self, value):
-        t = self._get_best_transformer()
-        try:
-            return t.transform(value)
-        except TypeError:
+        if self.virgin:
             self.adjust(value)
-            t = self._get_best_transformer()
-            return t.transform(value)
+            
+        t = self._get_best_transformer()
+        return t.transform(value)
 
         
 if __name__ == '__main__':
