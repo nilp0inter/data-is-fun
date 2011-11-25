@@ -322,11 +322,16 @@ class transform_factory:
     def _get_best_transformer(self):
         # Get the transformer with lower nulls and accumulated_size
         s = sorted(self.transformers.iteritems(), key = lambda x: (x[1]['nulls'], x[1]['accumulated_size']) )    
-        return s[0][0]
+        try:
+            return s[0][0]
+        except:
+            return None
 
     def get_best_definition(self):
         # Get the transformer with lower nulls and accumulated_size
         t = self._get_best_transformer()
+        if not t:
+            return None
         return self.get_transformer_definition(t, self.transformers[t])
 
     def transform(self, value):
@@ -334,7 +339,10 @@ class transform_factory:
             self.adjust(value)
             
         t = self._get_best_transformer()
-        return t.transform(value)
+        if not t:
+            return '"%s"' % value
+        else:
+            return t.transform(value)
 
         
 if __name__ == '__main__':

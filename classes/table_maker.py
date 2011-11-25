@@ -18,7 +18,7 @@ __version__ = "1.0"
 __maintainer__ = "Roberto Abdelkader"
 __email__ = "contacto@robertomartinez.es"
 
-from transformer import transform_factory
+from transformers import transform_factory
 
 class field:
     def __init__(self, name, force_text=False, raise_on_change=True, \
@@ -34,7 +34,7 @@ class field:
             self.mysql2field(mysql_definition)
         else:
             self.transformers =\
-            transform_factory('/home/segl/text2db/classes/transformers/',\
+            transform_factory('transformers/',\
             force_output_writer = 'mysql', nullable = self.isnull) 
 
         self.field_type = self.transformers.get_best_definition()
@@ -62,7 +62,7 @@ class field:
                 type_size = None
 
             self.transformers =\
-            transform_factory('/home/segl/text2db/classes/transformers/',\
+            transform_factory('transformers/',\
             force_output_type = column_type, force_output_writer = 'mysql',\
             nullable = self.isnull, type_size = type_size)
         else:

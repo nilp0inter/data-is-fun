@@ -215,6 +215,7 @@ class ProgressBar(object):
         self.widgets = widgets
         self.fd = fd
         self.signal_set = False
+        self.term_split = False
         if term_width is None:
             try:
                 self.handle_resize(None,None)
@@ -222,6 +223,15 @@ class ProgressBar(object):
                 self.signal_set = True
             except:
                 self.term_width = 79
+        elif type(term_width) == float: 
+            self.term_split = term_width
+            term_width = None
+            try:
+                self.handle_resize(None,None)
+                signal.signal(signal.SIGWINCH, self.handle_resize)
+                self.signal_set = True
+            except Exception, e:
+                self.term_width = int(79*self.term_split)
         else:
             self.term_width = term_width
 
@@ -230,10 +240,14 @@ class ProgressBar(object):
         self.prev_percentage = -1
         self.start_time = None
         self.seconds_elapsed = 0
+        self._last_output = ""
 
     def handle_resize(self, signum, frame):
-        h,w=array('h', ioctl(self.fd,termios.TIOCGWINSZ,'\0'*8))[:2]
+        #h,w=array('h', ioctl(self.fd,termios.TIOCGWINSZ,'\0'*8))[:2]
+        h,w=array('h', ioctl(sys.stderr,termios.TIOCGWINSZ,'\0'*8))[:2]
         self.term_width = w
+        if self.term_split:
+            self.term_width = int(w*self.term_split)
 
     def percentage(self):
         "Returns the percentage of the progress."
@@ -252,6 +266,10 @@ class ProgressBar(object):
             elif isinstance(w, (str, unicode)):
                 r.append(w)
                 currwidth += len(w)
+            elif isinstance(w, ProgressBar):
+                u = str(w)
+                r.append(u)
+                currwidth += len(u)
             else:
                 weval = w.update(self)
                 currwidth += len(weval)
@@ -261,7 +279,10 @@ class ProgressBar(object):
         return r
 
     def _format_line(self):
-        return ''.join(self._format_widgets()).ljust(self.term_width)
+        if self.fd == None:
+            return ''.join(self._format_widgets())
+        else:
+            return ''.join(self._format_widgets()).ljust(self.term_width)
 
     def _need_update(self):
         return int(self.percentage()) != int(self.prev_percentage)
@@ -276,6 +297,13 @@ class ProgressBar(object):
             self.start_time = time.time()
         self.seconds_elapsed = time.time() - self.start_time
         self.prev_percentage = self.percentage()
+
+        if self.fd == None:
+            if value == self.maxval:
+                self.finished = True
+            self._last_output = self._format_line()
+            return
+            
         if value != self.maxval:
             self.fd.write(self._format_line() + '\r')
         else:
@@ -302,7 +330,8 @@ class ProgressBar(object):
         if self.signal_set:
             signal.signal(signal.SIGWINCH, signal.SIG_DFL)
         
-
+    def __repr__(self):
+        return self._last_output
 
 
 
@@ -360,9 +389,27 @@ if __name__=='__main__':
         pbar.finish()
         print
 
+    def example5():
+        widgets1 = ['PB1: ', Percentage(), Bar(marker='.',left='(',right=')')]
+        pbar1 = ProgressBar(widgets=widgets1, maxval=100, term_width=1.0/3, fd=None)
+        pbar1.start()
+
+        widgets = ['PB: ', Percentage(), ' ', Bar(marker='.',left='(',right=')'),pbar1, pbar1]
+        pbar = ProgressBar(widgets=widgets, maxval=100)
+        pbar.start()
+
+        for i in range(0,100,3):
+            time.sleep(0.2)
+            #pbar1.update(i)
+            pbar.update(i)
+        pbar1.finish()
+        pbar.finish()
+        print
+
 
     example1()
     example2()
     example3()
     example4()
+    example5()
 

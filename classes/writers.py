@@ -9,12 +9,6 @@ distintos medios: bases de datos, xml, binario, etc.
 import sys
 import logging
 
-#
-# apt-get install python-mysqldb
-#
-import MySQLdb
-
-from table_maker import table_maker
 
 __author__ = "Roberto Abdelkader"
 __credits__ = ["Roberto Abdelkader"]
@@ -23,48 +17,75 @@ __version__ = "1.0"
 __maintainer__ = "Roberto Abdelkader"
 __email__ = "contacto@robertomartinez.es"
 
-class dbwriter:
-    """ Clase dbwriter. 
-            Prepara y ejecuta queries contra la base de datos basadas en diccionarios.
+class Writer(object):
+    """
+        Clase padre de los escritores. 
+    """
+
+    def __init__(self, config, name):
+        self.name = name
+        self.type = self.__class__.__name__.lower()
+        self.log = logging.getLogger('main.writer.%s' % self.name)
+        self.config = config
+        self.log.debug("Reader (%s) starting..." % self.name)
+
+    def start(self):
+        pass
+
+    def finish(self):
+        pass
+
+class mysql(Writer):
+    """ Clase mysqlwriter. 
+            Prepara y ejecuta queries contra mysql.
 
     """
 
 
-    def __init__(self, config):
+    def __init__(self, config, name):
+        #
+        # apt-get install python-mysqldb
+        #
+        #import MySQLdb
+        #from table_maker import table_maker
+        self._mysqldb = __import__('MySQLdb')
+        self._table_maker = __import__('table_maker')
 
+        super(mysql, self).__init__(config, name)
 
-        self.log = logging.getLogger('main.writer')
+        self.hostname = self.config.get(self.name, "hostname")
+        self.database = self.config.get(self.name, "database")
+        self.username = self.config.get(self.name, "username")
+        self.password = self.config.get(self.name, "password")
+        self.table = self.config.get(self.name, "table")
 
-        self.hostname = config.get("writer", "hostname")
-        self.database = config.get("writer", "database")
-        self.username = config.get("writer", "username")
-        self.password = config.get("writer", "password")
-        self.table = config.get("writer", "table")
-
-
-        self.force_text_fields = map(lambda x: x.strip(), config.get("writer", "force_text_fields", "string", "").split(","))
+        self.force_text_fields = map(lambda x: x.strip(), self.config.get(self.name, "force_text_fields", "string", "").split(","))
         if not self.force_text_fields:
             self.force_text_fields = []
 
-        self.db = MySQLdb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database)        
-        self.cursor = self.db.cursor()
-
-        self.pretend_queries = config.get("writer", "pretend_queries", "boolean")
+        self.pretend_queries = self.config.get(self.name, "pretend_queries", "boolean")
         if not self.pretend_queries:
-            self.flexible_schema = config.get("writer", "flexible_schema", "boolean")
-            self.force_text_fields = map(lambda x: x.strip(), config.get("writer", "force_text_fields", "string", "").split(","))
+            self.flexible_schema = self.config.get(self.name, "flexible_schema", "boolean")
+            self.force_text_fields = map(lambda x: x.strip(), self.config.get(self.name, "force_text_fields", "string", "").split(","))
         else:
             self.flexible_schema = False
             self.force_text_fields = []
             self.log.warning("Writer will pretend queries, no changes will be made to database.")
 
         self.columns = {}
+        self.strict_column_checking=self.config.get(self.name, "strict_column_checking", "boolean")
 
-        self.strict_column_checking=config.get("writer", "strict_column_checking", "boolean")
+        self.query_type = self.config.get(self.name, "query_type", "string", "insert")
+        self.query_where = self.config.get(self.name, "query_where", "string", "")
 
-        self.skip_columns=map(lambda x: x.strip(), config.get("writer", "skip_columns", "string", "").split(","))
+        self.skip_columns=map(lambda x: x.strip(), self.config.get(self.name, "skip_columns", "string", "").split(","))
         if type(self.skip_columns) != type([]):
             self.skip_columns = []
+
+
+    def start(self):
+        self.db = self._mysqldb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database)
+        self.cursor = self.db.cursor()
 
         # Load table schema and table_maker
         self.load_schemer()
@@ -73,6 +94,7 @@ class dbwriter:
 
         self.do_query("SET autocommit = 0")
         self.log.debug("Database writer started...")
+
 
     def load_schemer(self):
         try:
@@ -83,11 +105,11 @@ class dbwriter:
                 raise SystemExit
             # Table not found
             if self.flexible_schema:
-                self.schema = table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields)
+                self.schema = self._table_maker.table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields)
                 self.log.info("Creating table %s" % self.table)
                 self.do_query(str(self.schema))
 
-        self.schema = table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields, fields = self.get_columns().values())
+        self.schema = self._table_maker.table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields, fields = self.get_columns().values())
         
     def __del__(self):
         self.cursor.close()
@@ -139,11 +161,9 @@ class dbwriter:
                 break
             self.columns[row[0][0]] = row[0]
 
-    def make_query(self, data, query_type = "insert", query_where = ""):
+    def make_query(self, data):
         """
             Forma consultas para los datos dados.
-                query_type = "insert" | "update"
-                query_where = clausula where, se puede usar sustitucion "%(nombrevariable)s"
 
         """
 
@@ -162,13 +182,13 @@ class dbwriter:
                             self.do_query(query)
                         # Reload. Modified schema!
                         self.load_schemer()
-                        return self.make_query(data, query_type, query_where)
+                        return self.make_query(data, self.query_type, self.query_where)
                 else:
                     self.log.error('Invalid column data type.')
                     raise ValueError
 
-        if not query_type == "insert" and not query_type == "update":
-            raise Exception("Unknown query type: %s" % query_type)
+        if not self.query_type == "insert" and not self.query_type == "update":
+            raise Exception("Unknown query type: %s" % self.query_type)
 
         columns = []
         setstrings = []
@@ -186,42 +206,150 @@ class dbwriter:
                 self.log.debug("Skipping column in regexp: %s" % key)
                 continue
 
-##            try:
-##                # Ugly... Get column datatype
-##                if self.columns[key][1].upper().find("VARCHAR") != -1 or \
-##                    self.columns[key][1].upper().find("TEXT") != -1 or \
-##                    self.columns[key][1].upper().find("BLOB") != -1:
-##                    quote_char = '"'
-##                else:
-##                    quote_char = ''
-##            except:
-##                quote_char = '"'
-
-
             columns.append("`" + key + "`")
 
-##            if value == "":
-##                value = "NULL"
-##                quote_char = ''
-
-            if query_type == "insert":
-                #setstring = quote_char + self.db.escape_string(value) + quote_char
+            if self.query_type == "insert":
                 setstring = str(self.schema.fields[key].transform(value))
-            elif query_type == "update":
-                #setstring = "`" + key + "` = " + quote_char + self.db.escape_string(value) + quote_char
+            elif self.query_type == "update":
                 setstring = "`" + key + "` = " + str(self.schema.fields[key].transform(value))
 
             setstrings.append(setstring)
 
         # Transforma la variable query_where sustituyendo las variables por los valores de data
-        if query_where:
-            query_where = "WHERE " + query_where % data
+        if self.query_where:
+            query_where = "WHERE " + self.query_where % data
 
         # Forma las consultas finales
-        if query_type == "insert":
+        if self.query_type == "insert":
             query = "INSERT INTO %s (%s) VALUES (%s)" % (self.table, ", ".join(columns), ", ".join(setstrings))
-        elif query_type == "update":
+        elif self.query_type == "update":
             query = "UPDATE %s SET %s %s" % (self.table, ", ".join(setstrings), query_where)
 
         return query
 
+
+    def add_data(self, data):
+        self.log.debug("Reader (%s) receive data: %s" % (self.name, data))
+        sql_query = self.make_query(data)
+        if sql_query:
+            self.do_query(sql_query)
+        elif self.on_error == "pass":
+            self.log.warning("Invalid query, not inserting! Maybe malformed regexp or malformed line?")
+        else:
+            raise Exception("Empty query!, maybe malformed regexp?")
+
+    def finish(self):
+        self.do_commit()
+
+            
+class mysql_create(Writer):
+    """
+        Clase MySqlInspector. 
+            Crea tablas de MySQL.
+
+    """
+
+    def __init__(self, config, name):
+
+        self._mysqldb = __import__('MySQLdb')
+        self._table_maker = __import__('table_maker')
+
+        super(mysql_create, self).__init__(config, name)
+
+        self.hostname = self.config.get(self.name, "hostname")
+        self.database = self.config.get(self.name, "database")
+        self.username = self.config.get(self.name, "username")
+        self.password = self.config.get(self.name, "password")
+        self.table = self.config.get(self.name, "table")
+
+        self.skip_columns=map(lambda x: x.strip(), self.config.get(self.name, "skip_columns", "string", "").split(","))
+
+        self.force_text_fields = map(lambda x: x.strip(), self.config.get(self.name, "force_text_fields", "string", "").split(","))
+        if not self.force_text_fields:
+            self.force_text_fields = []
+
+        self.must_create = False
+        self.columns = {}
+        self.pretend_queries = False
+        self.added = 0
+
+
+    def start(self):
+        self.db = self._mysqldb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database)
+        self.cursor = self.db.cursor()
+        self.load_schemer()
+        self.do_query("SET autocommit = 0")
+        self.log.debug("Database inspector started...")
+
+    def load_schemer(self):
+        try:
+            self._get_column_info()
+        except:
+            # Table not found
+            self.must_create = True
+
+        self.schema = self._table_maker.table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields, fields = self.get_columns().values())
+        
+    def __del__(self):
+        self.cursor.close()
+        self.db.close()
+
+    def do_query(self, sql):
+        self.log.debug("Executing query: %s" % sql)
+        self.cursor.execute(sql)
+
+    def do_commit(self):
+        self.log.info("Commit")
+        self.db.commit()
+
+    def get_columns(self):
+        columns = self.columns.copy()
+        for skip in self.skip_columns:
+            try:
+                columns.__delitem__(skip)
+            except:
+                pass
+        return columns
+
+    def _get_column_info(self):
+        """
+            Obtiene la lista de columnas de la base de datos.
+
+        """
+        self.db.query("SHOW COLUMNS FROM %s" % \
+                      self.db.escape_string(self.table) )
+        res = self.db.store_result()
+        self.columns = {}
+        while 1:
+            row = res.fetch_row()
+            if not row:
+                break
+            self.columns[row[0][0]] = row[0]
+
+    def add_data(self, data):
+
+        self.added += 1
+
+        if not data:
+            return None
+
+        for skip in self.skip_columns:
+            try:
+                data.__delitem__(skip)
+            except:
+                pass
+        self.schema.add_data(data)
+        return None
+
+    def finish(self):
+        if self.must_create:
+            self.log.info("Creating table %s ..." % self.table)
+            self.do_query(str(self.schema)) 
+        else:
+            for key, value in self.schema.last_changes.iteritems():
+                if value.has_key('CREATE'):
+                    self.log.info("Adding column `%s`" % key)
+                    self.do_query(value['CREATE']) 
+                if value.has_key('MODIFY'):
+                    self.log.info("Changing column `%s`" % key)
+                    self.do_query(value['MODIFY']) 

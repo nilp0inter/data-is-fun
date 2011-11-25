@@ -7,7 +7,6 @@ el core los tratara como tal.
 """
 
 
-import re
 import logging
 import sys
 
@@ -19,27 +18,89 @@ __maintainer__ = "Roberto Abdelkader"
 __email__ = "contacto@robertomartinez.es"
 __status__ = "Production"
 
+class Reader(object):
+    """
+        Clase padre de los lectores. 
+    """
 
-class reader:
+    def __init__(self, config, name):
+        self.name = name
+        self.type = self.__class__.__name__.lower()
+        self.log = logging.getLogger('main.reader.%s' % self.name)
+        self.config = config
+        self.log.debug("Reader (%s) starting..." % self.name)
+
+    def start(self):
+        pass
+
+    def finish(self):
+        pass
+
+class command(Reader):
+    """
+        Lector command.
+            Ejecuta un comando y devuelve su resultado.
+            Soporta reemplazo de argumentos.
+    """
+
+    def __init__(self, config, name, input_files):
+        self._subprocess = __import__('subprocess')
+       
+        super(command, self).__init__(config, name)
+
+        commands = self.config.c.items(self.name)
+        commands = dict(filter(lambda x: x[0].startswith('exec_'), commands))
+
+        self.strip = self.config.get(self.name, "strip", "boolean", True)
+
+        self.command = {}
+        for name, exestr in commands.iteritems():
+            self.command[name[5:]] = exestr
+
+    def next(self, extra_data = None):
+
+        data = {}
+        if extra_data:
+            data.update(extra_data)
+
+        for name, exestr in self.command.iteritems():
+            if extra_data:
+                exestr = exestr % extra_data
+
+            exestr = filter(lambda x: x, exestr.split(' '))
+
+            if self.strip:
+                data[name] = self._subprocess.Popen(exestr, stdout=self._subprocess.PIPE).communicate()[0].rstrip('\r\n')
+            else:
+                data[name] = self._subprocess.Popen(exestr, stdout=self._subprocess.PIPE).communicate()[0]
+
+        return data
+
+class regexp(Reader):
     """
         Clase reader (iterable). Recibe un fichero o nombre
          de fichero y una expresion regular. Parsea cada linea
          y devuelve el diccionario de valores parseados.
     """
 
-    def __init__(self, config, input_file):
+    #import re
+    #from copy import copy
 
-        regexp = config.get("reader", "regexp")
+    def __init__(self, config, name, input_files):
+        self._re = __import__('re')
+        self._copy = __import__('copy')
+       
+        super(regexp, self).__init__(config, name)
 
-        self.log = logging.getLogger('main.reader')
+        _regexp = self.config.get(self.name, "regexp")
 
-        if input_file != file:
-            self.input_file = open(input_file, "r")
+        if type(input_files) != list:
+            self.original_input_files = [ input_files ]
         else:
-            self.input_file = input_file
+            self.original_input_files = input_files
 
         try:
-            self.regexp = [re.compile(regexp)]
+            self._regexp = [self._re.compile(_regexp)]
             self.long_regexp = False
         except:
             # Python no soporta mas de 100 grupos nominales.
@@ -48,23 +109,23 @@ class reader:
             # de 100 campos nominales cada una
             
             self.long_regexp = True
-            self.regexp = []
-            splitregexp = re.compile("[^)]*\(\?P.*?\)[^(]*")
-            groups = splitregexp.findall(regexp)
+            self._regexp = []
+            splitregexp = self._re.compile("[^)]*\(\?P.*?\)[^(]*")
+            groups = splitregexp.findall(_regexp)
             while groups:
-                self.regexp.append(re.compile("".join(groups[0:99])))
+                self._regexp.append(self._re.compile("".join(groups[0:99])))
                 del groups[0:99]
 
-        self.skip_empty_lines = config.get("reader", "skip_empty_lines", "boolean", True)
+        self.skip_empty_lines = self.config.get(self.name, "skip_empty_lines", "boolean", True)
+
+        self.cyclic = self.config.get(self.name, "cyclic", "boolean", False)
  
-        self.delete_extra_spaces = config.get("reader", "delete_extra_spaces", "boolean", True)
+        self.delete_extra_spaces = self.config.get(self.name, "delete_extra_spaces", "boolean", True)
 
-        skip_first_line=config.get("reader", "skip_first_line", "boolean", False)
-        if skip_first_line:
-            self.log.warning("Skipping first line...")
-            self.input_file.readline()
+        self.skip_first_line = self.config.get(self.name, "skip_first_line", "boolean", False)
 
-        static_fields=config.get("reader", "static_fields")
+
+        static_fields=self.config.get(self.name, "static_fields")
         if static_fields and type(static_fields) == str:
             self.static_fields = dict()
             for item in static_fields.split(","):
@@ -79,6 +140,7 @@ class reader:
         self.line = ""
         self.line_number = 0
 
+        self._next_file()
         self.log.debug("File reader started...")
 
     def __del__(self):
@@ -87,7 +149,36 @@ class reader:
     def __iter__(self):
         return self
 
-    def next(self):
+
+    def start(self):
+        self.input_files = self._copy.copy(self.original_input_files)
+        self._next_file()
+    
+    def _next_file(self):
+
+        try:
+            self.input_files
+        except:
+            self.input_files = self._copy.copy(self.original_input_files)
+
+        if self.input_files:
+            self.current_file = self.input_files.pop()
+        elif self.cyclic:
+            self.input_files = self._copy.copy(self.original_input_files)
+            self.current_file = self.input_files.pop()
+        else:
+            raise StopIteration
+
+        self.log.debug("Opening file (%s)" % self.current_file)
+        self.input_file = open(self.current_file, 'r')
+
+        if self.skip_first_line:
+            self.log.warning("Skipping first line...")
+            self.input_file.readline()
+
+            
+    def next(self, extra_data = None):
+
         self.line = self.input_file.readline() 
         self.line_number += 1
         while self.skip_empty_lines and self.line == "\n":
@@ -96,8 +187,9 @@ class reader:
             self.line_number += 1
             
         if not self.line:
-            self.log.debug("End of file.")
-            raise StopIteration
+            self.log.debug("End of file (%s)" % self.current_file)
+            self._next_file()
+            return self.next()
 
         self.log.debug("Line #%s : %s" % (self.line_number, self.line))
 
@@ -105,7 +197,7 @@ class reader:
         subline = self.line
         result = []
         data = {}
-        for subregexp in self.regexp:
+        for subregexp in self._regexp:
             subresult = subregexp.search(self.line) 
             if subresult:
                 # Delete matched line part
@@ -121,8 +213,14 @@ class reader:
                 data = dict(data.items() + self.static_fields.items())
 
             self.log.debug("Data found: %s" % data)
+
+            if extra_data and type(extra_data) == dict:
+                data.update(extra_data)
+
             return data
         else:
             self.log.warning("No data found at line #%s" % self.line_number)
+            if extra_data and type(extra_data) == dict:
+                return extra_data
             return None
 
