@@ -6,9 +6,9 @@ distintos medios: bases de datos, xml, binario, etc.
 """
 
 
+import os
 import sys
 import logging
-
 
 __author__ = "Roberto Abdelkader"
 __credits__ = ["Roberto Abdelkader"]
@@ -34,6 +34,57 @@ class Writer(object):
 
     def finish(self):
         pass
+
+class plain(Writer):
+    """ Class plain.
+        Write to plain text with templates.
+    """
+
+    def __init__(self, config, name):
+
+        try:
+            self._stringio = __import__('cStringIO')
+        except:
+            self._stringio = __import__('StringIO')
+
+        super(plain, self).__init__(config, name)
+        self.template_filename = self.config.get(self.name, "template")
+
+        self.output_location = self.config.get(self.name, "output")
+
+    def start(self):
+
+        try:
+            # Restart template file
+            self.template_content.seek(0)
+        except:
+            # Load template file
+            try:
+                self.template_file = open(self.template_filename, 'r')
+            except:
+                raise ValueError('Cannot open template (%s)' % self.template_filename)
+            self.template_content = self._stringio.StringIO()
+            self.template_content.write(self.template_file.read())
+            self.template_file.close()
+            self.template_content.seek(0)
+        
+    def add_data(self, data):
+        # Try to open output file location
+        try:
+            output = open(self.output_location % data, 'w')
+        except Exception, e:
+            raise ValueError(e)
+
+        for line in self.template_content.readlines():
+            output.write(line % data)
+
+        output.close()
+
+        self.template_content.seek(0)
+
+    def finish(self):
+        self.template_content.close()
+        del self.template_content
 
 class mysql(Writer):
     """ Clase mysqlwriter. 
