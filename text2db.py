@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Text2DB. Genera bases de datos a partir de otros formatos.
+"""DataIsFun!.
 
 ....................                       .....................
 .                  .                       .                   .
@@ -43,24 +43,19 @@ except:
 __author__ = "Roberto Abdelkader"
 __credits__ = ["Roberto Abdelkader"]
 __license__ = "GPL"
-__version__ = "1.0"
+__version__ = "2.0"
 __maintainer__ = "Roberto Abdelkader"
 __email__ = "contacto@robertomartinezp.es"
-__status__ = "Production"
 
-class Text2Db:
+class DataIsFun:
     
 
     def __init__(self, config, files_to_read = {}):
         
-        self.version = "2.0"
         self.log = logging.getLogger('main.core')
         self.config = config
 
-        self.log.info("Text2DB Started! v.%s", self.version)
-
-#        on_error = self.config.get("main", "on_error", "string", "rollback")
-#        inspect = self.config.get("main", "inspect", "boolean", True)
+        self.log.info("DataIsFun! v.%s", __version__)
 
         task_list = self.config.get("main", "process", "string", "reader > writer")
         object_list = set(re.findall('([a-zA-Z_0-9]+)', task_list))
@@ -68,48 +63,54 @@ class Text2Db:
         self.objects = self.map_objects(object_list, files_to_read)
         # Do all tasks
         for number, task in enumerate(task_list.split('&'), 1):
-            print "Starting task %s" % number
+            self.log.info("Starting task %s." % number)
+
+            # Parse task elements
             task = task.replace(' ','').replace('(','[').replace(')',']')
             task = re.sub(r'(?<=.)?([a-zA-Z_0-9]+)(?=.)?', r'"\1"', task)
             task_reader, task_writer = task.split('>')
-
             writer_part = eval('[%s]' % task_writer)
             reader_part = eval('[%s]' % task_reader)
 
-
+            #
+            # Execute current task
+            #
             for writer_group in writer_part:
                 if type(writer_group) is not list:
                     writer_group = [ writer_group ]
 
-                # Initialize current writers
+                # Initialize writers of this task
                 for current_writer in writer_group:
                     self.objects[current_writer].start()
 
                 for reader_group in reader_part:
-                    print "%s > %s" % (reader_group, writer_group)
+                    self.log.debug("Task struct: %s>%s." % (reader_group, writer_group))
+
                     if type(reader_group) is not list:
                         reader_group = [ reader_group ]
 
                     # Initialize current readers
                     for current_reader in reader_group:
                         self.objects[current_reader].start()
-   
-                    data = self.objects[reader_group[0]].next()
-                    while data:
-                        # Get and append data of all readers
+
+                    # Get and append data of all readers
+                    for data in self.objects[reader_group[0]]:
                         for reader in reader_group[1:]:
-                            data = self.objects[reader].next(data)
-   
-                        # Send accumulated data to all writers
+                            try:
+                                data = self.objects[reader].next(data)  
+                            except StopIteration:
+                                break
+
+                        # Delete metadata values
+                        for name in data.keys():
+                            if name.startswith('_'):
+                                data.__delitem__(name)
+
+                        # Send accumulated data to all writers in group
                         for current_writer in writer_group:
                             self.objects[current_writer].add_data(data)
 
-                        try:
-                            data = self.objects[reader_group[0]].next()
-                        except:
-                            break
-
-                    # Finish current readers
+                    # Finish task's readers
                     for current_reader in reader_group:
                         self.objects[current_reader].finish()
 
@@ -117,117 +118,7 @@ class Text2Db:
                 for current_writer in writer_group:
                     self.objects[current_writer].finish()
 
-                
-        sys.exit(0)                
-
-        #
-        # File inspection
-        #
-        if inspect:
-            # Inspect files before insert
-            try:
-                w = dbinspector(c)
-            except Exception, e:
-                self.log.error("Error starting database inspector")
-                self.log.exception(e)
-                sys.exit(1)
-
-            for filename in files_to_read:
-                try:
-                    del r
-                except:
-                    pass
-
-                self.log.info("Inspecting file: " + filename)
-                if progress: # First count lines
-                    widgets = [os.path.basename(filename) + ': ', progressbar.Percentage(), ' ', progressbar.Bar(marker='*',left='[',right=']'), ' ', progressbar.ETA(), ' ', progressbar.FileTransferSpeed()]
-                    pbar = progressbar.ProgressBar(widgets=widgets, maxval=file_len(filename))
-                    pbar.start()
-
-                r = reader(c, filename)
-
-                query_type = self.config.get("writer", "query_type", "string", default="insert") 
-                query_where = self.config.get("writer", "query_where", "string", default="")
-                try:
-                    for data in r:
-                        w.add_data(data)
-                        if progress:
-                            pbar.update(w.added)
-                
-                    self.log.info("File " + filename + " successfully processed.")
-                    if progress:
-                        pbar.finish()
-                except (KeyboardInterrupt, SystemExit):
-                    self.log.info("User exit while inspecting")
-                    sys.exit(2)
-                except Exception, e:
-                    self.log.exception(e)
-                    self.log.info("Error detected while inspecting")
-                    sys.exit(1)
-
-            # Commit changes
-            w.finish()
-            del w
-
-        #
-        # Insert data
-        #
-        try:
-            w = dbwriter(c)
-        except Exception, e:
-            self.log.error("Error starting database writer")
-            self.log.exception(e)
-            sys.exit(1)
-
-        for filename in files_to_read:
-            try:
-                del r
-            except:
-                pass
-
-            self.log.info("Processing file: " + filename)
-            if progress: # First count lines
-                widgets = [os.path.basename(filename) + ': ', progressbar.Percentage(), ' ', progressbar.Bar(marker='*',left='[',right=']'), ' ', progressbar.ETA(), ' ', progressbar.FileTransferSpeed()]
-                pbar = progressbar.ProgressBar(widgets=widgets, maxval=file_len(filename))
-                pbar.start()
-
-            r = reader(c, filename)
-
-            query_type = self.config.get("writer", "query_type", "string", default="insert") 
-            query_where = self.config.get("writer", "query_where", "string", default="")
-            try:
-                for data in r:
-                    sql_query = w.make_query(data, query_type = query_type, query_where = query_where)
-                    if sql_query:
-                        w.do_query(sql_query)
-                    elif on_error == "pass":
-                        self.log.warning("Invalid query, not inserting! Maybe malformed regexp or malformed line?")
-                    else:
-                        raise Exception("Empty query!, maybe malformed regexp?")
-                    if progress:
-                        pbar.update(w.added)
-            
-                self.log.info("File " + filename + " successfully processed.")
-                if progress:
-                    pbar.finish()
-                w.do_commit()
-            except (KeyboardInterrupt, SystemExit):
-                self.log.info("User exit, doing action: " + on_error)
-                w.do_rollback()
-                sys.exit(2)
-            except Exception, e:
-                self.log.exception(e)
-                if on_error == "pass":
-                    self.log.error("Error detected, doing action: " + on_error)
-                    pass
-                else:
-                    self.log.error("Error detected, doing default action: rollback")
-                    w.do_rollback()
-                    sys.exit(1)
-
         self.log.info("Done!, exiting...")
-        sys.exit(0)
-
 
     def map_objects(self, object_list, files_to_read):
         objects = {}
@@ -237,8 +128,6 @@ class Text2Db:
                 object_type, object_subtype = self.config.get(name, "type", "string", "").split(':', 1)
             except ValueError:
                 print "Bad type"
-
-
 
             try:
                 object_type = object_type.lower()
@@ -275,7 +164,7 @@ def file_len(fname):
         return 0
 
 def usage():
-    print "usage: text2db [-c|--config] <configfile> [-h|--help] [-q|--quiet] [-d|--debug] (<files_to_read> | [--reader_1_name]=[file1...fileN] [--reader_2_name]=[file1...fileN])"
+    print "usage: %s [-c|--config] <configfile> [-h|--help] [-q|--quiet] [-d|--debug] (<files_to_read> | [--reader_1_name]=[file1...fileN] [--reader_2_name]=[file1...fileN])" % sys.argv[0]
     print "   -c|--config\tSet config file"
     print "   -h|--help\tShow this help and exit"
     print "   -q|--quiet\tSuppress messages"
@@ -352,5 +241,5 @@ if __name__ == '__main__':
     else:
         logging.basicConfig(level=verbose_level, format=log_format)
 
-    text2db = Text2Db(c, files_by_reader)
+    dif = DataIsFun(c, files_by_reader)
 
