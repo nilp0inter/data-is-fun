@@ -101,6 +101,8 @@ class DataIsFun:
                             except StopIteration:
                                 break
 
+                        self.log.debug("Data found: %s" % data)
+
                         # Delete metadata values
                         for name in data.keys():
                             if name.startswith('_'):

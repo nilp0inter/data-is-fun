@@ -30,11 +30,109 @@ class Reader(object):
         self.config = config
         self.log.debug("Reader (%s) starting..." % self.name)
 
+        # Values for all reader
+        self.cyclic = self.config.get(self.name, "cyclic", "boolean", False)
+
     def start(self):
         pass
 
     def finish(self):
         pass
+
+    def __iter__(self):
+        return self
+
+## Reader Skeleton
+#class readername(Reader):
+#    """
+#        readername info
+#    """
+#
+#    def __init__(self, config, name, input_files):
+#        self._library = __import__('library')
+#       
+#        super(readername, self).__init__(config, name)
+#
+#    def start(self):
+#        pass
+#
+#    def next(self, extra_data = None):
+#        pass
+#
+#    def finish(self):
+#        pass
+
+class csv(Reader):
+    """
+        Lector de csv.
+    """
+
+    def __init__(self, config, name, input_files):
+        self._csv = __import__('csv')
+       
+        super(csv, self).__init__(config, name)
+
+        if type(input_files) != list:
+            self.original_input_files = [ input_files ]
+        else:
+            self.original_input_files = input_files
+
+    def start(self):
+        pass
+
+    def next(self, extra_data = None):
+        pass
+
+    def finish(self):
+        pass
+
+class mysql(Reader):
+    """
+        Lector de mysql.
+        Se le especifica la query (puede utilizarse sustitucion de variables).
+        Mientras la query no cambie se recorren los resultados obtenidos hasta 
+        su final.
+    """
+
+    def __init__(self, config, name, input_files):
+        self._mysqldb= __import__('MySQLdb')
+       
+        super(command, self).__init__(config, name)
+
+        self.hostname = self.config.get(self.name, "hostname")
+        self.database = self.config.get(self.name, "database")
+        self.username = self.config.get(self.name, "username")
+        self.password = self.config.get(self.name, "password")
+        self.query = self.config.get(self.name, "query")
+        self.last_query = None
+
+    def do_query(self, sql):
+        self.log.debug("Executing query: %s" % sql)
+        self.cursor.execute(sql)
+
+    def start(self):
+        self.db = self._mysqldb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database, cursorclass=self._mysqldb.cursors.DictCursor)
+        self.cursor = self.db.cursor()
+
+    def next(self, extra_data = None):
+        self.current_query = self.query % extra_data
+        if self.current_query != self.last_query:
+            self.do_query(self.current_query)
+
+        data = self.cursor.fetchone()
+
+        if not data:
+            raise StopIteration
+
+        elif extra_data:
+            extra_data.update(data)
+            data=extra_data
+
+        return data
+            
+    def finish(self):
+        self.cursor.close()
+        self.db.close()
 
 class command(Reader):
     """
@@ -118,7 +216,6 @@ class regexp(Reader):
 
         self.skip_empty_lines = self.config.get(self.name, "skip_empty_lines", "boolean", True)
 
-        self.cyclic = self.config.get(self.name, "cyclic", "boolean", False)
  
         self.delete_extra_spaces = self.config.get(self.name, "delete_extra_spaces", "boolean", True)
 
@@ -146,8 +243,6 @@ class regexp(Reader):
     def __del__(self):
         self.input_file.close()
 
-    def __iter__(self):
-        return self
 
 
     def start(self):
@@ -212,7 +307,6 @@ class regexp(Reader):
             if self.static_fields:
                 data = dict(data.items() + self.static_fields.items())
 
-            self.log.debug("Data found: %s" % data)
 
             if extra_data and type(extra_data) == dict:
                 data.update(extra_data)

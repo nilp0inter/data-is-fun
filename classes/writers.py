@@ -27,7 +27,7 @@ class Writer(object):
         self.type = self.__class__.__name__.lower()
         self.log = logging.getLogger('main.writer.%s' % self.name)
         self.config = config
-        self.log.debug("Reader (%s) starting..." % self.name)
+        self.log.debug("Writer (%s) starting..." % self.name)
 
     def start(self):
         pass
