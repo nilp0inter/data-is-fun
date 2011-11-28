@@ -64,7 +64,7 @@ class transformer:
         self.loaded = False
         self.config_file = config_file
 
-        self.log = logging.getLogger('main.transformer')
+        self.log = logging.getLogger('transformer')
 
         # Config options
         self.config = Config(self.config_file)

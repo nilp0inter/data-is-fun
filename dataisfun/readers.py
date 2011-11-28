@@ -44,7 +44,7 @@ class Reader(object):
     def __init__(self, config, name):
         self.name = name
         self.type = self.__class__.__name__.lower()
-        self.log = logging.getLogger('main.reader.%s' % self.name)
+        self.log = logging.getLogger('reader.%s' % self.name)
         self.config = config
         self.log.debug("Reader (%s) starting..." % self.name)
 
@@ -252,8 +252,6 @@ class regexp(Reader):
         else:
             self.static_fields = None
 
-        self.line = ""
-        self.line_number = 0
 
         self._next_file()
         self.log.debug("File reader started...")
@@ -264,6 +262,9 @@ class regexp(Reader):
 
 
     def start(self):
+        self.line = ""
+        self.line_number = 0
+
         self.input_files = self._copy.copy(self.original_input_files)
         self._next_file()
     

@@ -37,7 +37,7 @@ class Config:
     def __init__(self, config_file):
         self.c = ConfigParser.RawConfigParser()
         self.c.read(config_file)
-        self.log = logging.getLogger('main.config')
+        self.log = logging.getLogger('config')
 
     def get(self, section, option, option_type="string", default=None):
         """

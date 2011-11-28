@@ -25,14 +25,14 @@ import logging
 import getopt
 
 # Add class dir to the path
-BASE_DIR = os.path.dirname(__file__) or '.'
-CLASS_DIR = os.path.join(BASE_DIR, 'classes')
-sys.path.insert(0, CLASS_DIR)
+#BASE_DIR = os.path.dirname(__file__) or '.'
+#CLASS_DIR = os.path.join(BASE_DIR, 'classes')
+#sys.path.insert(0, CLASS_DIR)
 
-from config import Config
+from dataisfun.config import Config
 
 try:
-    import progressbar
+    import dataisfun.progressbar
     progress = True
 except:
     progress = False
@@ -50,7 +50,7 @@ class DataIsFun:
 
     def __init__(self, config, files_to_read = {}):
         
-        self.log = logging.getLogger('main.core')
+        self.log = logging.getLogger('core')
         self.config = config
 
         self.log.info("DataIsFun! v.%s", __version__)
@@ -141,10 +141,10 @@ class DataIsFun:
                     else:
                         files = []
                     # Import the module and set object
-                    exec("from %s import %s\nobjects[\"%s\"]=%s(self.config, name, files)" % (object_type, object_subtype, name, object_subtype))
+                    exec("from dataisfun.%s import %s\nobjects[\"%s\"]=%s(self.config, name, files)" % (object_type, object_subtype, name, object_subtype))
                 elif object_type == "writers":
                     # Import the module and set object
-                    exec("from %s import %s\nobjects[\"%s\"]=%s(self.config,name)" % (object_type, object_subtype, name, object_subtype))
+                    exec("from dataisfun.%s import %s\nobjects[\"%s\"]=%s(self.config,name)" % (object_type, object_subtype, name, object_subtype))
                 else:
                     raise TypeError
 
@@ -172,8 +172,7 @@ def usage():
     print ""
     sys.exit(2)
 
-if __name__ == '__main__':
-
+def main():
     #
     # Parse command line options 
     #
@@ -233,7 +232,7 @@ if __name__ == '__main__':
         progress = False
 
     log_file = c.get("main", "log_file", "string", None)
-    log_format = '%(asctime)s [%(levelname)s] - %(message)s'
+    log_format = '%(asctime)s %(name)s [%(levelname)s] - %(message)s'
 
     log = logging.getLogger('main')
     if log_file:
@@ -243,3 +242,5 @@ if __name__ == '__main__':
 
     dif = DataIsFun(c, files_by_reader)
 
+if __name__ == '__main__':
+    main()

@@ -43,7 +43,7 @@ class Writer(object):
     def __init__(self, config, name):
         self.name = name
         self.type = self.__class__.__name__.lower()
-        self.log = logging.getLogger('main.writer.%s' % self.name)
+        self.log = logging.getLogger('writer.%s' % self.name)
         self.config = config
         self.log.debug("Writer (%s) starting..." % self.name)
 
@@ -118,7 +118,7 @@ class mysql(Writer):
         #import MySQLdb
         #from table_maker import table_maker
         self._mysqldb = __import__('MySQLdb')
-        self._table_maker = __import__('table_maker')
+        self._table_maker = __import__('dataisfun.table_maker', fromlist=['table_maker'], level=-1)
 
         super(mysql, self).__init__(config, name)
 
@@ -321,7 +321,7 @@ class mysql_create(Writer):
     def __init__(self, config, name):
 
         self._mysqldb = __import__('MySQLdb')
-        self._table_maker = __import__('table_maker')
+        self._table_maker = __import__('dataisfun.table_maker', fromlist=['table_maker'], level=-1)
 
         super(mysql_create, self).__init__(config, name)
 
@@ -357,6 +357,8 @@ class mysql_create(Writer):
             # Table not found
             self.must_create = True
 
+        print dir(self._table_maker)
+        print self._table_maker
         self.schema = self._table_maker.table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields, fields = self.get_columns().values())
         
     def __del__(self):

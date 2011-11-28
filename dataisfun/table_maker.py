@@ -142,7 +142,7 @@ class table_maker:
                     isnull = True
                 self.fields[f[0]] = field(f[0], mysql_definition=f[1], force_text = (f[0] in self.force_text_fields), isnull=isnull)
                 self.last_changes[f[0]] = {}
-        self.log = logging.getLogger('main.table_maker')
+        self.log = logging.getLogger('table_maker')
                 
     def add_data(self, data):
         if not data:
