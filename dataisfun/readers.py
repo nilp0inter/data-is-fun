@@ -113,9 +113,9 @@ class mysql(Reader):
     """
 
     def __init__(self, config, name, input_files):
-        self._mysqldb= __import__('MySQLdb')
+        self._mysqldb = __import__('MySQLdb.cursors')
        
-        super(command, self).__init__(config, name)
+        super(mysql, self).__init__(config, name)
 
         self.hostname = self.config.get(self.name, "hostname")
         self.database = self.config.get(self.name, "database")
@@ -129,13 +129,19 @@ class mysql(Reader):
         self.cursor.execute(sql)
 
     def start(self):
-        self.db = self._mysqldb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database, cursorclass=self._mysqldb.cursors.DictCursor)
+        self.db = self._mysqldb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database, cursorclass=self._mysqldb.cursors.SSDictCursor, conv={})
+
         self.cursor = self.db.cursor()
 
     def next(self, extra_data = None):
-        self.current_query = self.query % extra_data
+        try:
+            self.current_query = self.query % extra_data
+        except TypeError:
+            self.current_query = self.query
+
         if self.current_query != self.last_query:
             self.do_query(self.current_query)
+            self.last_query = self.current_query
 
         data = self.cursor.fetchone()
 
@@ -151,6 +157,7 @@ class mysql(Reader):
     def finish(self):
         self.cursor.close()
         self.db.close()
+        self.last_query = None
 
 class command(Reader):
     """

@@ -127,7 +127,8 @@ class DataIsFun:
             try:
                 object_type, object_subtype = self.config.get(name, "type", "string", "").split(':', 1)
             except ValueError:
-                print "Bad type"
+                self.log.warning("Object %s has a bad type. Skipping" % name)
+                continue
 
             try:
                 object_type = object_type.lower()

@@ -330,6 +330,10 @@ class transform_factory:
         """Adjust transformer list to match new data
         """
         self.virgin = False
+        if s == None:
+            self.nullable = True
+            return
+
         map(lambda x: self.transformers.__delitem__(x), set(self.transformers.keys()).difference(set(self.get_transformers(s))))
 
         ## DEBUG
@@ -354,7 +358,13 @@ class transform_factory:
     def transform(self, value):
         if self.virgin:
             self.adjust(value)
-            
+           
+        if value == None:
+            if not self.nullable:
+                raise ValueError('Trying to transform None value with a non nullable data type')
+            else:
+                return None
+
         t = self._get_best_transformer()
         if not t:
             return '"%s"' % value

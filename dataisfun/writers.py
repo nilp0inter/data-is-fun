@@ -16,6 +16,7 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with data-is-fun.  If not, see <http://www.gnu.org/licenses/>.
+
 """Provee clases de escritores para utilizar desde el core.
 
 Los escritores reciben diccionarios clave-valor y los escriben en 
@@ -53,8 +54,8 @@ class Writer(object):
     def finish(self):
         pass
 
-class plain(Writer):
-    """ Class plain.
+class plain_file_template(Writer):
+    """ Class plain_file_template.
         Write to plain text with templates.
     """
 
@@ -65,7 +66,7 @@ class plain(Writer):
         except:
             self._stringio = __import__('StringIO')
 
-        super(plain, self).__init__(config, name)
+        super(plain_file_template, self).__init__(config, name)
         self.template_filename = self.config.get(self.name, "template")
 
         self.output_location = self.config.get(self.name, "output")
@@ -278,9 +279,16 @@ class mysql(Writer):
             columns.append("`" + key + "`")
 
             if self.query_type == "insert":
-                setstring = str(self.schema.fields[key].transform(value))
+                formatted_value = self.schema.fields[key].transform(value)
+                if formatted_value == None:
+                    formatted_value = 'NULL'
+                setstring = str(formatted_value)
             elif self.query_type == "update":
-                setstring = "`" + key + "` = " + str(self.schema.fields[key].transform(value))
+                formatted_value = self.schema.fields[key].transform(value)
+                if formatted_value == None:
+                    formatted_value = 'NULL'
+
+                setstring = "`%s` = %s" % (key, self.schema.fields[key].transform(value) )
 
             setstrings.append(setstring)
 
@@ -357,8 +365,6 @@ class mysql_create(Writer):
             # Table not found
             self.must_create = True
 
-        print dir(self._table_maker)
-        print self._table_maker
         self.schema = self._table_maker.table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields, fields = self.get_columns().values())
         
     def __del__(self):
