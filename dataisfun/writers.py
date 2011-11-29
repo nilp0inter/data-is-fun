@@ -54,8 +54,28 @@ class Writer(object):
     def finish(self):
         pass
 
-class plain_file_template(Writer):
-    """ Class plain_file_template.
+## Writer Skeleton
+#class writername(Writer):
+#    """
+#        writername info
+#    """
+#
+#    def __init__(self, config, name):
+#        self._library = __import__('library')
+#       
+#        super(readername, self).__init__(config, name)
+#
+#    def start(self):
+#        pass
+#
+#    def add_data(self, data):
+#        pass
+#
+#    def finish(self):
+#        pass
+
+class file_template(Writer):
+    """ Class file_template.
         Write to plain text with templates.
     """
 
@@ -82,6 +102,7 @@ class plain_file_template(Writer):
                 self.template_file = open(self.template_filename, 'r')
             except:
                 raise ValueError('Cannot open template (%s)' % self.template_filename)
+
             self.template_content = self._stringio.StringIO()
             self.template_content.write(self.template_file.read())
             self.template_file.close()
@@ -104,6 +125,143 @@ class plain_file_template(Writer):
     def finish(self):
         self.template_content.close()
         del self.template_content
+
+class file_format(Writer):
+    """ Class file_format
+        Write files with custom format.
+
+    """
+
+    def __init__(self, config, name):
+       
+        super(file_format, self).__init__(config, name)
+
+        self.format = self.config.get(self.name, "format", "string")
+        if not self.format:
+            raise ValueError("The format value is mandatory")
+
+        self.output_location = self.config.get(self.name, "output", "string")
+        if not self.output_location:
+            raise ValueError("The output value is mandatory")
+
+        self.append = self.config.get(self.name, "append", "boolean", True)
+
+    def start(self):
+        pass   
+
+    def add_data(self, data):
+        try:
+            if self.output_filename != self.output_location % data:
+                self.output_file.close()
+                self.output_filename = self.output_location % data
+                if self.append:
+                    self.output_file = open(self.output_filename, 'a')
+                else:
+                    self.output_file = open(self.output_filename, 'w')
+        except (NameError, AttributeError):
+            self.output_filename = self.output_location % data
+            if self.append:
+                self.output_file = open(self.output_filename, 'a')
+            else:
+                self.output_file = open(self.output_filename, 'w')
+
+        self.output_file.write(self.format % data)
+        self.output_file.write('\n')
+
+    def finish(self):
+        try:
+            self.output_file.close()
+        except:
+            pass
+
+class mysql_custom(Writer):
+    """ Clase mysql_custom. 
+            Ejecuta querys mysql establecidas por el usuario.
+
+    """
+
+
+    def __init__(self, config, name):
+        #
+        # apt-get install python-mysqldb
+        #
+        #import MySQLdb
+        #from table_maker import table_maker
+        self._mysqldb = __import__('MySQLdb')
+
+        super(mysql_custom, self).__init__(config, name)
+
+        self.hostname = self.config.get(self.name, "hostname")
+        self.database = self.config.get(self.name, "database")
+        self.username = self.config.get(self.name, "username")
+        self.password = self.config.get(self.name, "password")
+        self.query = self.config.get(self.name, "query")
+
+        self.on_error = self.config.get(self.name, "on_error", "string", "rollback")
+
+        self.pretend_queries = self.config.get(self.name, "pretend_queries", "boolean")
+        if self.pretend_queries:
+            self.log.warning("Writer will pretend queries, no changes will be made to database.")
+
+    def start(self):
+        self.db = self._mysqldb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database)
+        self.cursor = self.db.cursor()
+        self.added = 0
+        self.do_query("SET autocommit = 0")
+
+    def __del__(self):
+        self.finish()
+
+    def do_query(self, sql):
+        if self.pretend_queries:
+            self.log.debug("Pretending query: %s" % sql)
+        else:
+            self.log.debug("Executing query: %s" % sql)
+            self.cursor.execute(sql)
+
+    def do_rollback(self):
+        if self.pretend_queries:
+            self.log.info("Pretending rollback")
+        else:
+            self.log.info("Rollback")
+            self.db.rollback()
+
+    def do_commit(self):
+        if self.pretend_queries:
+            self.log.info("Pretending commit")
+        else:
+            self.log.info("Commit")
+            self.db.commit()
+
+    def add_data(self, data):
+        try:
+            sql_query = self.query % data
+        except:
+            if self.on_error != "pass":
+                print self.query, data
+                raise
+            sql_query = False
+
+        if sql_query:
+            self.do_query(sql_query)
+        elif self.on_error == "pass":
+            self.log.warning("Invalid query, not inserting!")
+
+    def finish(self):
+        try:
+            self.db
+            self.do_commit()
+        except:
+            pass
+        try:
+            self.cursor.close()
+        except:
+            pass
+        finally:
+            try:
+                self.db.close()
+            except:
+                pass
 
 class mysql(Writer):
     """ Clase mysqlwriter. 
@@ -182,8 +340,15 @@ class mysql(Writer):
         self.schema = self._table_maker.table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields, fields = self.get_columns().values())
         
     def __del__(self):
-        self.cursor.close()
-        self.db.close()
+        try:
+            self.cursor.close()
+        except:
+            pass
+        finally:
+            try:
+                self.db.close()
+            except:
+                pass
 
     def do_query(self, sql):
         if self.pretend_queries:

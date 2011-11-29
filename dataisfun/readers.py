@@ -99,6 +99,7 @@ class mysql(Reader):
         self.username = self.config.get(self.name, "username")
         self.password = self.config.get(self.name, "password")
         self.query = self.config.get(self.name, "query")
+        self.requery = self.config.get(self.name, "requery", "boolean", False)
         self.last_query = None
 
     def do_query(self, sql):
@@ -116,7 +117,13 @@ class mysql(Reader):
         except TypeError:
             self.current_query = self.query
 
-        if self.current_query != self.last_query:
+        if self.current_query != self.last_query or self.requery:
+            try:
+                self.cursor.close()
+            except:
+                pass
+            finally:
+                self.cursor = self.db.cursor()
             self.do_query(self.current_query)
             self.last_query = self.current_query
 
@@ -339,10 +346,6 @@ class regexp(Reader):
                 self.static_fields[key] = value
         else:
             self.static_fields = None
-
-
-        self._next_file()
-        self.log.debug("File reader started...")
 
     def __del__(self):
         self.input_file.close()
