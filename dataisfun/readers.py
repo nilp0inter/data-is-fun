@@ -80,29 +80,6 @@ class Reader(object):
 #    def finish(self):
 #        pass
 
-class csv(Reader):
-    """
-        Lector de csv.
-    """
-
-    def __init__(self, config, name, input_files):
-        self._csv = __import__('csv')
-       
-        super(csv, self).__init__(config, name)
-
-        if type(input_files) != list:
-            self.original_input_files = [ input_files ]
-        else:
-            self.original_input_files = input_files
-
-    def start(self):
-        pass
-
-    def next(self, extra_data = None):
-        pass
-
-    def finish(self):
-        pass
 
 class mysql(Reader):
     """
@@ -159,6 +136,29 @@ class mysql(Reader):
         self.db.close()
         self.last_query = None
 
+##class udf(Reader):
+##    """
+##        User defined functions or values.
+##        Inspired in transformers.
+##
+##    """
+##    def __init__(self, config, input_files):
+##
+##        functions = self.config.c.items(self.name)
+##
+##        if functions:
+##            try:
+##                # Get and compile lambda functions (groups{}) => str)
+##                pre_format_pairs = dict(filter(lambda x: x[0].startswith('preformat_'), functions))
+##                self.f_preformat = {}
+##                for name, f in pre_format_pairs.iteritems():
+##                    try:
+##                        self.f_preformat[name[10:]] = eval(compile(f, '<string>','eval'), {}, {})
+##                    except Exception, e:
+##                        self.log.error("Error compiling preformat function %s at %s(%s) [%s]" % (name, self.name, self.config_file, e))
+##                        raise
+## 
+    
 class command(Reader):
     """
         Lector command.
@@ -199,15 +199,96 @@ class command(Reader):
 
         return data
 
+class csv(Reader):
+    """
+        Lector de csv.
+    """
+
+    def __init__(self, config, name, input_files):
+        self._csv = __import__('csv')
+        self._copy = __import__('copy')
+       
+        super(csv, self).__init__(config, name)
+
+        if type(input_files) != list:
+            self.original_input_files = [ input_files ]
+        else:
+            self.original_input_files = input_files
+
+
+        self.reader = None
+
+        self.dialect = self.config.get(self.name, "dialect", "string", None)
+
+        try:
+            self.fieldnames = map(lambda x: x.strip(), self.config.get(self.name, "fieldnames", "string", None).split(","))
+        except:
+            self.fieldnames = None
+        try:
+            self.restkey = map(lambda x: x.strip(), self.config.get(self.name, "restkey", "string", None).split(","))
+        except:
+            self.restkey = None
+        try:
+            self.restval = map(lambda x: x.strip(), self.config.get(self.name, "restval", "string", None).split(","))
+        except:
+            self.restval = None
+
+        self.input_file = None
+
+    def start(self):
+        self.input_files = self._copy.copy(self.original_input_files)
+        self._next_file()
+
+    def next(self, extra_data = None):
+        data = self.input_csv.next()
+        if extra_data and data:
+            data.update(extra_data)
+        
+        return data
+            
+        
+    def finish(self):
+        try:
+            self.input_file.close()
+        except:
+            pass
+
+    def _next_file(self):
+
+        try:
+            self.input_files
+        except:
+            self.input_files = self._copy.copy(self.original_input_files)
+
+        if self.input_files:
+            self.current_file = self.input_files.pop()
+        elif self.cyclic:
+            self.input_files = self._copy.copy(self.original_input_files)
+            self.current_file = self.input_files.pop()
+        else:
+            raise StopIteration
+
+        if self.input_file:
+            self.input_file.close()
+
+        self.log.debug("Opening file (%s)" % self.current_file)
+        self.input_file = open(self.current_file, 'rb')
+      
+        if not self.dialect:
+            dialect = self._csv.Sniffer().sniff(self.input_file.read(2048))
+            self.input_file.seek(0)
+        else:
+            dialect = self.dialect
+
+        self.input_csv = self._csv.DictReader(self.input_file, fieldnames=self.fieldnames, restkey=self.restkey, restval=self.restval, dialect=dialect)
+        self.line_number = 0
+
 class regexp(Reader):
     """
         Clase reader (iterable). Recibe un fichero o nombre
          de fichero y una expresion regular. Parsea cada linea
          y devuelve el diccionario de valores parseados.
     """
-
-    #import re
-    #from copy import copy
 
     def __init__(self, config, name, input_files):
         self._re = __import__('re')
