@@ -29,10 +29,10 @@ import getopt
 #CLASS_DIR = os.path.join(BASE_DIR, 'classes')
 #sys.path.insert(0, CLASS_DIR)
 
-from dataisfun.config import Config
+from dataisfun.util.config import Config
 
 try:
-    import dataisfun.progressbar
+    import dataisfun.util.progressbar
     progress = True
 except:
     progress = False
@@ -134,7 +134,7 @@ class DataIsFun:
                 object_type = object_type.lower()
                 object_subtype = object_subtype.lower()
 
-                if object_type == "readers":
+                if object_type == "read":
                     if files_to_read.has_key(name):
                         files = files_to_read[name]
                     elif files_to_read.has_key('_all'):
@@ -142,10 +142,14 @@ class DataIsFun:
                     else:
                         files = []
                     # Import the module and set object
-                    exec("from dataisfun.%s import %s\nobjects[\"%s\"]=%s(self.config, name, files)" % (object_type, object_subtype, name, object_subtype))
-                elif object_type == "writers":
+                    exec("from dataisfun.%s import\
+                    %s\nobjects[\"%s\"]=%s.%s(self.config, name, files)" %\
+                    (object_type, object_subtype, name, object_subtype, object_subtype))
+                elif object_type == "write":
                     # Import the module and set object
-                    exec("from dataisfun.%s import %s\nobjects[\"%s\"]=%s(self.config,name)" % (object_type, object_subtype, name, object_subtype))
+                    exec("from dataisfun.%s import\
+                    %s\nobjects[\"%s\"]=%s.%s(self.config,name)" %\
+                    (object_type, object_subtype, name, object_subtype, object_subtype))
                 else:
                     raise TypeError
 
