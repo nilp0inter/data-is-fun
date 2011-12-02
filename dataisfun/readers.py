@@ -36,6 +36,8 @@ __version__ = "2.0"
 __maintainer__ = "Roberto Abdelkader"
 __email__ = "contacto@robertomartinezp.es"
 
+from dataisfun.util import progressbar
+
 class Reader(object):
     """
         Clase padre de los lectores. 
@@ -51,6 +53,14 @@ class Reader(object):
         # Values for all reader
         self.cyclic = self.config.get(self.name, "cyclic", "boolean", False)
 
+        # Process progress
+        self.overall_max = -1
+        self.overall_current = 0
+        self.step_max = 0
+        self.step_current = 0
+        self.last_overall_current = -1
+
+
     def start(self):
         pass
 
@@ -59,6 +69,33 @@ class Reader(object):
 
     def __iter__(self):
         return self
+
+    def update_progress(self, screen_percent):
+
+        if self.overall_current != self.last_overall_current:
+            # Reader step change, update progress
+            return self.get_progress(screen_percent)
+        else:
+            # Reader step update
+            try:
+                self.progress.update(self.step_current) 
+            except AttributeError:
+                return self.get_progress(screen_percent)
+
+    def get_progress(self, screen_percent):
+        if self.overall_max == -1 or self.cyclic:
+            widgets = [ ' %s : N/A ' % self.name ]
+            self.progress = progressbar.ProgressBar(widgets=widgets, term_width=screen_percent, maxval=self.step_max, fd=None)
+            self.progress.start()
+        else:
+            widgets = [ ' %s (%s/%s):' % (self.name, self.overall_current, self.overall_max), progressbar.Percentage(), progressbar.Bar(marker='*', left='[', right=']') ]
+            self.progress = progressbar.ProgressBar(widgets=widgets, term_width=screen_percent, maxval=self.step_max, fd=None)
+            self.progress.start()
+            self.progress.update(self.step_current)
+
+
+
+        return self.progress
 
 ## Reader Skeleton
 #class readername(Reader):

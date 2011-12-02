@@ -55,15 +55,25 @@ class mysql(Reader):
         self.username = self.config.get(self.name, "username")
         self.password = self.config.get(self.name, "password")
         self.query = self.config.get(self.name, "query")
+        self.results_on_server = self.config.get(self.name, "results_on_server", "boolean", False)
         self.requery = self.config.get(self.name, "requery", "boolean", False)
+        if self.requery or self.results_on_server:
+            self.overall_max = -1
+        else:
+            self.overall_max = 1
+            self.overall_current = 1
         self.last_query = None
 
     def do_query(self, sql):
         self.log.debug("Executing query: %s" % sql)
         self.cursor.execute(sql)
+        self.step_max = self.cursor.rowcount
 
     def start(self):
-        self.db = MySQLdb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database, cursorclass=MySQLdb.cursors.SSDictCursor, conv={})
+        if self.results_on_server:
+            self.db = MySQLdb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database, cursorclass=MySQLdb.cursors.SSDictCursor, conv={})
+        else:
+            self.db = MySQLdb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database, cursorclass=MySQLdb.cursors.DictCursor, conv={})
 
         self.cursor = self.db.cursor()
 
@@ -80,6 +90,7 @@ class mysql(Reader):
                 pass
             finally:
                 self.cursor = self.db.cursor()
+
             self.do_query(self.current_query)
             self.last_query = self.current_query
 
@@ -92,6 +103,7 @@ class mysql(Reader):
             extra_data.update(data)
             data=extra_data
 
+        self.step_current += 1
         return data
             
     def finish(self):

@@ -23,19 +23,8 @@ import os
 import sys
 import logging
 import getopt
+import time
 
-# Add class dir to the path
-#BASE_DIR = os.path.dirname(__file__) or '.'
-#CLASS_DIR = os.path.join(BASE_DIR, 'classes')
-#sys.path.insert(0, CLASS_DIR)
-
-from dataisfun.util.config import Config
-
-try:
-    import dataisfun.util.progressbar
-    progress = True
-except:
-    progress = False
 
 __author__ = "Roberto Abdelkader"
 __credits__ = ["Roberto Abdelkader"]
@@ -45,13 +34,18 @@ __version__ = "2.0"
 __maintainer__ = "Roberto Abdelkader"
 __email__ = "contacto@robertomartinezp.es"
 
+from dataisfun.util.config import Config
+from dataisfun.util import progressbar
+
 class DataIsFun:
     
 
-    def __init__(self, config, files_to_read = {}):
+    def __init__(self, config, files_to_read = {}, progress=False):
         
         self.log = logging.getLogger('core')
         self.config = config
+        self.progress = progress
+        self.progress_update = 1    # Seconds between updates
 
         self.log.info("DataIsFun! v.%s", __version__)
 
@@ -73,6 +67,8 @@ class DataIsFun:
             #
             # Execute current task
             #
+            if self.progress:
+                last_progress_update = time.time()
             for writer_group in writer_part:
                 if type(writer_group) is not list:
                     writer_group = [ writer_group ]
@@ -110,9 +106,19 @@ class DataIsFun:
                         for current_writer in writer_group:
                             self.objects[current_writer].add_data(data)
 
+                        if self.progress and (time.time() - last_progress_update) > self.progress_update:
+                            widgets = [ 'Tasks: %s/%s -' % (number, len(task_list.split('&'))) ]
+                            widgets.extend([ self.objects[x].update_progress(1.0/(len(reader_group)+1)) for x in reader_group ])
+                            self.progress = progressbar.ProgressBar(widgets=widgets, maxval=1).start()
+                            last_progress_update = time.time()
+
+                    if self.progress:
+                        self.progress.finish()
+
                     # Finish task's readers
                     for current_reader in reader_group:
                         self.objects[current_reader].finish()
+
 
                 # Finish current writers
                 for current_writer in writer_group:
@@ -224,7 +230,7 @@ def main():
     #
     if verbose_level == None:
         verbose_level = c.get("main", "verbose", "int", 2)
-
+    progress = True
     if verbose_level == 0: # TOTALY QUIET
         verbose_level = logging.CRITICAL
         progress = False
@@ -245,7 +251,7 @@ def main():
     else:
         logging.basicConfig(level=verbose_level, format=log_format)
 
-    dif = DataIsFun(c, files_by_reader)
+    dif = DataIsFun(c, files_by_reader, progress=progress)
 
 if __name__ == '__main__':
     main()

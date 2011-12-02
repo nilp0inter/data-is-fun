@@ -279,10 +279,11 @@ class ProgressBar(object):
         return r
 
     def _format_line(self):
-        if self.fd == None:
-            return ''.join(self._format_widgets())
-        else:
-            return ''.join(self._format_widgets()).ljust(self.term_width)
+#        if self.fd == None:
+#            return ''.join(self._format_widgets())
+#        else:
+#            return ''.join(self._format_widgets()).ljust(self.term_width)
+        return ''.join(self._format_widgets()).ljust(self.term_width)
 
     def _need_update(self):
         return int(self.percentage()) != int(self.prev_percentage)
@@ -326,6 +327,10 @@ class ProgressBar(object):
 
     def finish(self):
         """Used to tell the progress is finished."""
+        for i, w in enumerate(self.widgets):
+            if isinstance(w, ProgressBar):
+                w.finish()
+
         self.update(self.maxval)
         if self.signal_set:
             signal.signal(signal.SIGWINCH, signal.SIG_DFL)

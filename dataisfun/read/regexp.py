@@ -25,6 +25,7 @@ el core los tratara como tal.
 """
 
 
+import os
 import re
 import copy
 
@@ -99,18 +100,25 @@ class regexp(Reader):
 
 
     def start(self):
+
         self.line = ""
-        self.line_number = 0
 
         self.input_files = copy.copy(self.original_input_files)
+
+        # Process progress
+        self.overall_max = len(self.input_files)
+
         self._next_file()
-    
+
+   
     def _next_file(self):
 
         try:
             self.input_files
         except:
             self.input_files = copy.copy(self.original_input_files)
+
+        self.overall_current = self.overall_max - (len(self.input_files)-1)
 
         if self.input_files:
             self.current_file = self.input_files.pop()
@@ -122,12 +130,16 @@ class regexp(Reader):
 
         self.log.debug("Opening file (%s)" % self.current_file)
         self.input_file = open(self.current_file, 'r')
+        self.step_max = os.path.getsize(self.current_file)
+        self.step_current = 0
+        self.line_number = 0
 
         if self.skip_first_line:
             self.log.warning("Skipping first line...")
             self.input_file.readline()
-
+            self.line_number += 1
             
+
     def next(self, extra_data = None):
 
         self.line = self.input_file.readline() 
@@ -135,14 +147,14 @@ class regexp(Reader):
         while self.skip_empty_lines and self.line == "\n":
             self.log.warning("Skipping empty line. #%s" % self.line_number )
             self.line = self.input_file.readline() 
-            self.line_number += 1
-            
+
         if not self.line:
             self.log.debug("End of file (%s)" % self.current_file)
             self._next_file()
             return self.next()
 
         self.log.debug("Line #%s : %s" % (self.line_number, self.line))
+        self.step_current = self.input_file.tell()
 
         # 100 groups regexp workaround 
         subline = self.line
