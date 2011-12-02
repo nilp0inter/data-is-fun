@@ -101,6 +101,8 @@ class regexp(Reader):
 
     def start(self):
 
+        super(regexp, self).start()
+
         self.line = ""
 
         self.input_files = copy.copy(self.original_input_files)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#! /usr/bin/env python
 #
 #    Copyright (C) 2011 Roberto A. Martinez Perez
 #
@@ -44,7 +44,7 @@ class DataIsFun:
         
         self.log = logging.getLogger('core')
         self.config = config
-        self.progress = progress
+        self.do_progress = progress
         self.progress_update = 1    # Seconds between updates
 
         self.log.info("DataIsFun! v.%s", __version__)
@@ -54,8 +54,8 @@ class DataIsFun:
 
         self.objects = self.map_objects(object_list, files_to_read)
         # Do all tasks
-        for number, task in enumerate(task_list.split('&'), 1):
-            self.log.info("Starting task %s." % number)
+        for task_number, task in enumerate(task_list.split('&'), 1):
+            self.log.info("Starting task %s." % task_number)
 
             # Parse task elements
             task = task.replace(' ','').replace('(','[').replace(')',']')
@@ -67,8 +67,6 @@ class DataIsFun:
             #
             # Execute current task
             #
-            if self.progress:
-                last_progress_update = time.time()
             for writer_group in writer_part:
                 if type(writer_group) is not list:
                     writer_group = [ writer_group ]
@@ -77,7 +75,9 @@ class DataIsFun:
                 for current_writer in writer_group:
                     self.objects[current_writer].start()
 
-                for reader_group in reader_part:
+                for step_number, reader_group in enumerate(reader_part, 1):
+                    if self.do_progress:
+                        last_progress_update = time.time() - self.progress_update
                     self.log.debug("Task struct: %s>%s." % (reader_group, writer_group))
 
                     if type(reader_group) is not list:
@@ -106,13 +106,13 @@ class DataIsFun:
                         for current_writer in writer_group:
                             self.objects[current_writer].add_data(data)
 
-                        if self.progress and (time.time() - last_progress_update) > self.progress_update:
-                            widgets = [ 'Tasks: %s/%s -' % (number, len(task_list.split('&'))) ]
+                        if self.do_progress and (time.time() - last_progress_update) > self.progress_update:
+                            widgets = [ 'Tasks: (%s/%s) Step: (%s/%s)' % (task_number, len(task_list.split('&')), step_number, len(reader_part)) ]
                             widgets.extend([ self.objects[x].update_progress(1.0/(len(reader_group)+1)) for x in reader_group ])
                             self.progress = progressbar.ProgressBar(widgets=widgets, maxval=1).start()
                             last_progress_update = time.time()
 
-                    if self.progress:
+                    if self.do_progress:
                         self.progress.finish()
 
                     # Finish task's readers

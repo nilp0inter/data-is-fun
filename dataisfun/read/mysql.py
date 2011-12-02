@@ -57,11 +57,6 @@ class mysql(Reader):
         self.query = self.config.get(self.name, "query")
         self.results_on_server = self.config.get(self.name, "results_on_server", "boolean", False)
         self.requery = self.config.get(self.name, "requery", "boolean", False)
-        if self.requery or self.results_on_server:
-            self.overall_max = -1
-        else:
-            self.overall_max = 1
-            self.overall_current = 1
         self.last_query = None
 
     def do_query(self, sql):
@@ -70,6 +65,13 @@ class mysql(Reader):
         self.step_max = self.cursor.rowcount
 
     def start(self):
+        super(mysql, self).start()
+        if self.requery or self.results_on_server:
+            self.overall_max = -1
+        else:
+            self.overall_max = 1
+            self.overall_current = 1
+
         if self.results_on_server:
             self.db = MySQLdb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database, cursorclass=MySQLdb.cursors.SSDictCursor, conv={})
         else:

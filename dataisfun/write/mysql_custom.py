@@ -69,7 +69,11 @@ class mysql_custom(Writer):
         self.do_query("SET autocommit = 0")
 
     def __del__(self):
-        self.finish()
+        try:
+            self.db.ping()
+            self.finish()
+        except:
+            pass
 
     def do_query(self, sql):
         if self.pretend_queries:

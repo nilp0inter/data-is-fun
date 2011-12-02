@@ -53,16 +53,15 @@ class Reader(object):
         # Values for all reader
         self.cyclic = self.config.get(self.name, "cyclic", "boolean", False)
 
+
+
+    def start(self):
         # Process progress
         self.overall_max = -1
         self.overall_current = 0
         self.step_max = 0
         self.step_current = 0
         self.last_overall_current = -1
-
-
-    def start(self):
-        pass
 
     def finish(self):
         pass
@@ -74,12 +73,20 @@ class Reader(object):
 
         if self.overall_current != self.last_overall_current:
             # Reader step change, update progress
+            self.last_overall_current = self.overall_current
             return self.get_progress(screen_percent)
         else:
             # Reader step update
             try:
-                self.progress.update(self.step_current) 
+                if self.overall_max == -1 or self.cyclic:
+                    pass
+                else:
+                    self.progress.update(self.step_current) 
+                return self.progress
             except AttributeError:
+                return self.get_progress(screen_percent)
+            except AssertionError:
+                print self.step_current, self.step_max
                 return self.get_progress(screen_percent)
 
     def get_progress(self, screen_percent):
@@ -88,7 +95,9 @@ class Reader(object):
             self.progress = progressbar.ProgressBar(widgets=widgets, term_width=screen_percent, maxval=self.step_max, fd=None)
             self.progress.start()
         else:
-            widgets = [ ' %s (%s/%s):' % (self.name, self.overall_current, self.overall_max), progressbar.Percentage(), progressbar.Bar(marker='*', left='[', right=']') ]
+            widgets = [ ' %s (%s/%s):' % (self.name, self.overall_current,
+            self.overall_max), progressbar.Percentage(),
+            progressbar.Bar(marker='*', left='[', right=']'), progressbar.ETA() ]
             self.progress = progressbar.ProgressBar(widgets=widgets, term_width=screen_percent, maxval=self.step_max, fd=None)
             self.progress.start()
             self.progress.update(self.step_current)
