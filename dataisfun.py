@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 #
 #    Copyright (C) 2011 Roberto A. Martinez Perez
 #
@@ -160,7 +160,7 @@ class DataIsFun:
                     raise TypeError
 
             except Exception, e:
-                print "Import error (%s)" % e
+                self.log.exception("Import error (%s)" % e)
                 raise
 
         return objects
