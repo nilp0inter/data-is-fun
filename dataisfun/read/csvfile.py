@@ -25,7 +25,7 @@ el core los tratara como tal.
 """
 
 
-import csv as csvlib
+import csv
 import copy
 
 __author__ = "Roberto Abdelkader"
@@ -38,14 +38,14 @@ __email__ = "contacto@robertomartinezp.es"
 
 from dataisfun.readers import Reader
 
-class csv(Reader):
+class csvfile(Reader):
     """
         Lector de csv.
     """
 
     def __init__(self, config, name, input_files):
        
-        super(csv, self).__init__(config, name)
+        super(csvfile, self).__init__(config, name)
 
         if type(input_files) != list:
             self.original_input_files = [ input_files ]
@@ -73,7 +73,7 @@ class csv(Reader):
         self.input_file = None
 
     def start(self):
-        super(csv, self).start()
+        super(csvfile, self).start()
         self.input_files = copy.copy(self.original_input_files)
         self._next_file()
 
@@ -113,12 +113,12 @@ class csv(Reader):
         self.input_file = open(self.current_file, 'rb')
       
         if not self.dialect:
-            dialect = csvlib.Sniffer().sniff(self.input_file.read(2048))
+            dialect = csv.Sniffer().sniff(self.input_file.read(2048))
             self.input_file.seek(0)
         else:
             dialect = self.dialect
 
-        self.input_csv = csvlib.DictReader(self.input_file, fieldnames=self.fieldnames, restkey=self.restkey, restval=self.restval, dialect=dialect)
+        self.input_csv = csv.DictReader(self.input_file, fieldnames=self.fieldnames, restkey=self.restkey, restval=self.restval, dialect=dialect)
         self.line_number = 0
 
 
