@@ -1,0 +1,7 @@
+Data-Is-Fun! TODO & IDEAS
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ * Los transformadores deben estar aislados de los escritores reader->core->transformers->writer.
+   - El parametro compatible writers se utilizara para inspeccionar las clases base de cada escritor (__bases__)
+   - Crear clase base para cada lector/escritor por tecnologia mysql, sqlite, oracle, etc...
+
