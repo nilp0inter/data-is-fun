@@ -40,8 +40,8 @@ __version__ = "2.0"
 __maintainer__ = "Roberto Abdelkader"
 __email__ = "contacto@robertomartinezp.es"
 
-from config import Config
-from topological_sort import robust_topological_sort as ts
+from dataisfun.util.config import Config
+#from topological_sort import robust_topological_sort as ts
 
 
 class tvalue:

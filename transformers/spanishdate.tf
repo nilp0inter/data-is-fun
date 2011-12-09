@@ -16,4 +16,4 @@ preformat_day=lambda x: x['day'].rjust(2,'0')
 preformat_month=lambda x: x['month'].rjust(2,'0')
 preformat_year=lambda x: x['year'].rjust(4, '0') if int(x['year'])>99 else str(int(x['year'])+2000) if int(x['year'])<10 else str(int(x['year'])+1900)
 
-post_format=lambda x,y: int(y['day'])*x # so fun!
+#post_format=lambda x,y: int(y['day'])*x # so fun!

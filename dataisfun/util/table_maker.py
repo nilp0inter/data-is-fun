@@ -36,7 +36,7 @@ __version__ = "2.0"
 __maintainer__ = "Roberto Abdelkader"
 __email__ = "contacto@robertomartinezp.es"
 
-from transformers import transform_factory
+from dataisfun.transform.transformers import transform_factory
 
 class field:
     def __init__(self, name, force_text=False, raise_on_change=True, \

@@ -34,7 +34,7 @@ __version__ = "2.0"
 __maintainer__ = "Roberto Abdelkader"
 __email__ = "contacto@robertomartinezp.es"
 
-from dataisfun.writer import Writer
+from dataisfun.writers import Writer
 from dataisfun.util import table_maker
 
 class mysql(Writer):
@@ -84,7 +84,7 @@ class mysql(Writer):
 
 
     def start(self):
-        self.db = self._mysqldb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database)
+        self.db = MySQLdb.connect(host=self.hostname, user=self.username, passwd=self.password, db=self.database)
         self.cursor = self.db.cursor()
 
         # Load table schema and table_maker
@@ -105,11 +105,11 @@ class mysql(Writer):
                 raise SystemExit
             # Table not found
             if self.flexible_schema:
-                self.schema = self._table_maker.table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields)
+                self.schema = table_maker.table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields)
                 self.log.info("Creating table %s" % self.table)
                 self.do_query(str(self.schema))
 
-        self.schema = self._table_maker.table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields, fields = self.get_columns().values())
+        self.schema = table_maker.table_maker(self.table, start_year=2011, end_year=2015, force_text_fields=self.force_text_fields, fields = self.get_columns().values())
         
     def __del__(self):
         try:

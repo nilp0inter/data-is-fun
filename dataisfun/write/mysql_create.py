@@ -35,7 +35,7 @@ __maintainer__ = "Roberto Abdelkader"
 __email__ = "contacto@robertomartinezp.es"
 
 from dataisfun.writers import Writer 
-from dataisfun.utils import table_maker
+from dataisfun.util import table_maker
 
 class mysql_create(Writer):
     """
