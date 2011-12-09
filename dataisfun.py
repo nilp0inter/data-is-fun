@@ -58,7 +58,7 @@ class DataIsFun:
             self.log.info("Starting task %s." % task_number)
 
             # Parse task elements
-            task = task.replace(' ','').replace('(','[').replace(')',']')
+            task = task.replace(' ','').replace(']',',]').replace(')',',)')
             task = re.sub(r'(?<=.)?([a-zA-Z_0-9]+)(?=.)?', r'"\1"', task)
             task_reader, task_writer = task.split('>')
             writer_part = eval('[%s]' % task_writer)
@@ -80,37 +80,86 @@ class DataIsFun:
                         last_progress_update = time.time() - self.progress_update
                     self.log.debug("Task struct: %s>%s." % (reader_group, writer_group))
 
-                    if type(reader_group) is not list:
+                    if type(reader_group) is not list and type(reader_group) is not tuple:
                         reader_group = [ reader_group ]
 
                     # Initialize current readers
                     for current_reader in reader_group:
                         self.objects[current_reader].start()
 
-                    # Get and append data of all readers
-                    for data in self.objects[reader_group[0]]:
-                        for reader in reader_group[1:]:
+                    if type(reader_group) is tuple:
+                        # () -> Master-Slave mode. First reader is the master, all
+                        # others are slaves.
+
+                        # Get and append data of all readers
+                        for data in self.objects[reader_group[0]]:
+                            for reader in reader_group[1:]:
+                                try:
+                                    data = self.objects[reader].next(data)  
+                                except StopIteration:
+                                    self.log.debug("Reader (%s) is out of data! Skipping..." % reader)
+                                    continue
+
+                            self.log.debug("Data found: %s" % data)
+
+                            # Delete metadata values
+                            for name in data.keys():
+                                if name.startswith('_'):
+                                    data.__delitem__(name)
+
+                            # Send accumulated data to all writers in group
+                            for current_writer in writer_group:
+                                self.objects[current_writer].add_data(data)
+
+                            if self.do_progress and (time.time() - last_progress_update) > self.progress_update:
+                                widgets = [ 'Tasks: (%s/%s) Step: (%s/%s)' % (task_number, len(task_list.split('&')), step_number, len(reader_part)) ]
+                                widgets.extend([ self.objects[x].update_progress(1.0/(len(reader_group)+1)) for x in reader_group ])
+                                self.progress = progressbar.ProgressBar(widgets=widgets, maxval=1).start()
+                                last_progress_update = time.time()
+
+                    elif type(reader_group) is list:
+                        # [] -> Cascade mode. For each reader read all child
+                        # reader.
+                        level = 0
+                        cascade_data = []
+                        while level >= 0:
                             try:
-                                data = self.objects[reader].next(data)  
+                                if level > 0:
+                                    subdata = self.objects[reader_group[level]].next(cascade_data[level-1])
+                                    print ">>>", len(reader_group), level, cascade_data[level-1]
+                                else:
+                                    subdata = self.objects[reader_group[level]].next()
+
+                                try:
+                                    cascade_data[level] = subdata
+                                except IndexError:
+                                    cascade_data.append(subdata)
+
+                                if level == len(reader_group)-1:
+                                    data = cascade_data[level]
+                                    self.log.debug("Data found: %s" % data)
+
+                                    # Delete metadata values
+                                    for name in data.keys():
+                                        if name.startswith('_'):
+                                            data.__delitem__(name)
+
+                                    for current_writer in writer_group:
+                                        self.objects[current_writer].add_data(data)
+
+                                    if self.do_progress and (time.time() - last_progress_update) > self.progress_update:
+                                        widgets = [ 'Tasks: (%s/%s) Step: (%s/%s)' % (task_number, len(task_list.split('&')), step_number, len(reader_part)) ]
+                                        widgets.extend([ self.objects[x].update_progress(1.0/(len(reader_group)+1)) for x in reader_group ])
+                                        self.progress = progressbar.ProgressBar(widgets=widgets, maxval=1).start()
+                                        last_progress_update = time.time()
+
+                                else:
+                                    self.log.debug("Level up %s->%s" % (level, level+1))
+                                    level += 1
+                    
                             except StopIteration:
-                                break
-
-                        self.log.debug("Data found: %s" % data)
-
-                        # Delete metadata values
-                        for name in data.keys():
-                            if name.startswith('_'):
-                                data.__delitem__(name)
-
-                        # Send accumulated data to all writers in group
-                        for current_writer in writer_group:
-                            self.objects[current_writer].add_data(data)
-
-                        if self.do_progress and (time.time() - last_progress_update) > self.progress_update:
-                            widgets = [ 'Tasks: (%s/%s) Step: (%s/%s)' % (task_number, len(task_list.split('&')), step_number, len(reader_part)) ]
-                            widgets.extend([ self.objects[x].update_progress(1.0/(len(reader_group)+1)) for x in reader_group ])
-                            self.progress = progressbar.ProgressBar(widgets=widgets, maxval=1).start()
-                            last_progress_update = time.time()
+                                self.log.debug("Level down %s->%s" % (level, level-1))
+                                level -= 1
 
                     if self.do_progress:
                         self.progress.finish()

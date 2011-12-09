@@ -59,6 +59,9 @@ class file_format(Writer):
 
         self.append = self.config.get(self.name, "append", "boolean", True)
 
+        self.skiperrors = self.config.get(self.name, "skiperrors", "boolean", True)
+
+
     def start(self):
         pass   
 
@@ -78,8 +81,14 @@ class file_format(Writer):
             else:
                 self.output_file = open(self.output_filename, 'w')
 
-        self.output_file.write(self.format % data)
-        self.output_file.write('\n')
+        try:
+            self.output_file.write(self.format % data)
+            self.output_file.write('\n')
+        except Exception, e:
+            if not self.skiperrors:
+                raise
+            else:
+                self.log.warning("Error writing plain data: %s", e)
 
     def finish(self):
         try:

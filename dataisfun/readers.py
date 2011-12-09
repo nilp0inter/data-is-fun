@@ -59,7 +59,7 @@ class Reader(object):
         # Process progress
         self.overall_max = -1
         self.overall_current = 0
-        self.step_max = 0
+        self.step_max = -1
         self.step_current = 0
         self.last_overall_current = -1
 
@@ -92,7 +92,7 @@ class Reader(object):
     def get_progress(self, screen_percent):
         if self.overall_max == -1 or self.cyclic:
             widgets = [ ' %s : N/A ' % self.name ]
-            self.progress = progressbar.ProgressBar(widgets=widgets, term_width=screen_percent, maxval=self.step_max, fd=None)
+            self.progress = progressbar.ProgressBar(widgets=widgets, term_width=screen_percent, maxval=1000, fd=None)
             self.progress.start()
         else:
             widgets = [ ' %s (%s/%s):' % (self.name, self.overall_current,
