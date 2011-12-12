@@ -56,7 +56,8 @@ class Config:
                 value = self.c.getint(section,option)
             elif option_type == "float":
                 value = self.c.getfloat(section,option)
-        except:
+        except ConfigParser.NoOptionError:
+            self.log.debug("Option (%s\\%s) not found, setting default value %s" % (section, option, default) )
             value = default
 
         self.log.debug("Setting option %s\\%s = %s" % (section, option, value))
