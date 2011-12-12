@@ -26,6 +26,7 @@ distintos medios: bases de datos, xml, binario, etc.
 
 import os
 import sys
+import codecs
 import logging
 
 __author__ = "Roberto Abdelkader"
@@ -57,9 +58,10 @@ class file_format(Writer):
         if not self.output_location:
             raise ValueError("The output value is mandatory")
 
-        self.append = self.config.get(self.name, "append", "boolean", True)
 
+        self.append = self.config.get(self.name, "append", "boolean", True)
         self.skiperrors = self.config.get(self.name, "skiperrors", "boolean", True)
+        self.encoding = self.config.get(self.name, "encoding", "string", "utf-8")
 
 
     def start(self):
@@ -71,15 +73,15 @@ class file_format(Writer):
                 self.output_file.close()
                 self.output_filename = self.output_location % data
                 if self.append:
-                    self.output_file = open(self.output_filename, 'a')
+                    self.output_file = codecs.open(self.output_filename, mode='a', encoding=self.encoding)
                 else:
-                    self.output_file = open(self.output_filename, 'w')
+                    self.output_file = codecs.open(self.output_filename, mode='w', encoding=self.encoding)
         except (NameError, AttributeError):
             self.output_filename = self.output_location % data
             if self.append:
-                self.output_file = open(self.output_filename, 'a')
+                self.output_file = codecs.open(self.output_filename, mode='a', encoding=self.encoding)
             else:
-                self.output_file = open(self.output_filename, 'w')
+                self.output_file = codecs.open(self.output_filename, mode='w', encoding=self.encoding)
 
         try:
             self.output_file.write(self.format % data)
