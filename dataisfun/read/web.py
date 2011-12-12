@@ -70,6 +70,7 @@ class web(Reader):
 
     def start(self):
         super(web, self).start()
+        self.overall_max = 1
 
     def next(self, extra_data = None):
         try:
@@ -100,9 +101,12 @@ class web(Reader):
             self.last_base = self.current_base
             self.base_nodes = self.web_tree.xpath(self.current_base)
             self.base_nodes.reverse()
+            self.step_max = len(self.base_nodes)
+            self.step_current = 0
 
         try:
             self.current_base_node = self.base_nodes.pop()
+            self.step_current += 1
         except IndexError:
             if not self.cyclic:
                 raise StopIteration

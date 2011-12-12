@@ -51,10 +51,13 @@ class sequence(Reader):
     def start(self):
         super(sequence, self).start()
         self.seq_current = self.seq_start
+        self.step_max = self.seq_stop - self.seq_start
+        self.overall_max = 1
 
     def next(self, extra_data = None):
         if self.seq_current + self.seq_step < self.seq_stop:
             self.seq_current += self.seq_step
+            self.step_current = self.seq_current - self.seq_start
             data = {self.seq_name : self.seq_current}
             if extra_data:
                 data.update(extra_data)
