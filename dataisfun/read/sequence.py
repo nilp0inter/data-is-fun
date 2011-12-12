@@ -43,7 +43,7 @@ class sequence(Reader):
     def __init__(self, config, name, input_files):
         super(sequence, self).__init__(config, name)
 
-        self.name = self.config.get(self.name, "name", "string", "sequence")
+        self.seq_name = self.config.get(self.name, "name", "string", "sequence")
         self.seq_start = self.config.get(self.name, "start", "int", 0)
         self.seq_stop = self.config.get(self.name, "stop", "int", 10)
         self.seq_step = self.config.get(self.name, "step", "int", 1)
@@ -55,7 +55,7 @@ class sequence(Reader):
     def next(self, extra_data = None):
         if self.seq_current + self.seq_step < self.seq_stop:
             self.seq_current += self.seq_step
-            data = {self.name : self.seq_current}
+            data = {self.seq_name : self.seq_current}
             if extra_data:
                 data.update(extra_data)
             return data
