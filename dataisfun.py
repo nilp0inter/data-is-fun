@@ -126,7 +126,6 @@ class DataIsFun:
                             try:
                                 if level > 0:
                                     subdata = self.objects[reader_group[level]].next(cascade_data[level-1])
-                                    print ">>>", len(reader_group), level, cascade_data[level-1]
                                 else:
                                     subdata = self.objects[reader_group[level]].next()
 

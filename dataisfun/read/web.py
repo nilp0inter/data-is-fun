@@ -54,7 +54,7 @@ class web(Reader):
 
         # XPath base
         self.base = self.config.get(self.name, "base", "string", None)
-        assert(self.base!=None)        
+        assert(self.base!=None)
 
         # Restart base in each iteration
         self.rebase = self.config.get(self.name, "rebase", "boolean", False)
